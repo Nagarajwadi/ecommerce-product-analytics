@@ -26,16 +26,19 @@ DB_PATH = BASE_DIR / "data" / "product_analytics.db"
 
 @st.cache_data
 def load_data():
+
     connection = sqlite3.connect(DB_PATH)
 
-    query = """
-    SELECT *
-    FROM events
-    """
-
-    data = pd.read_sql_query(query, connection)
+    data = pd.read_sql_query(
+        "SELECT * FROM events",
+        connection
+    )
 
     connection.close()
+
+    data["timestamp"] = pd.to_datetime(
+        data["timestamp"]
+    )
 
     return data
 
@@ -44,650 +47,710 @@ df = load_data()
 
 
 # ============================================================
-# PAGE TITLE
+# COMMON CALCULATIONS
 # ============================================================
 
-st.title("📊 ShopFlow Product Analytics")
-
-st.markdown(
-    """
-    **E-commerce product analytics dashboard**
-
-    Analyze funnel conversion, revenue, user behavior,
-    retention, and experimentation.
-    """
-)
-
-
-# ============================================================
-# DATA SUMMARY
-# ============================================================
-
-total_users = df["user_id"].nunique()
-total_events = len(df)
-total_purchases = (df["event_name"] == "purchase").sum()
-
-purchase_data = df[df["event_name"] == "purchase"].copy()
-
-total_revenue = (
-    purchase_data["price"] * purchase_data["quantity"]
-).sum()
-
-unique_purchasers = purchase_data["user_id"].nunique()
-
-overall_conversion = (
-    unique_purchasers / total_users * 100
-)
-
-
-# ============================================================
-# KPI CARDS
-# ============================================================
-
-col1, col2, col3, col4, col5 = st.columns(5)
-
-with col1:
-    st.metric(
-        "Users",
-        f"{total_users:,}"
-    )
-
-with col2:
-    st.metric(
-        "Events",
-        f"{total_events:,}"
-    )
-
-with col3:
-    st.metric(
-        "Purchases",
-        f"{total_purchases:,}"
-    )
-
-with col4:
-    st.metric(
-        "Revenue",
-        f"${total_revenue:,.0f}"
-    )
-
-with col5:
-    st.metric(
-        "Purchase Conversion",
-        f"{overall_conversion:.2f}%"
-    )
-
-# ============================================================
-# FUNNEL ANALYSIS
-# ============================================================
-
-st.divider()
-
-st.subheader("🛒 Conversion Funnel")
-
-funnel_data = pd.DataFrame({
-    "Stage": [
-        "App Open",
-        "View Product",
-        "Add to Cart",
-        "Checkout Start",
-        "Purchase"
-    ],
-    "Users": [
-        df.loc[df["event_name"] == "app_open", "user_id"].nunique(),
-        df.loc[df["event_name"] == "view_product", "user_id"].nunique(),
-        df.loc[df["event_name"] == "add_to_cart", "user_id"].nunique(),
-        df.loc[df["event_name"] == "checkout_start", "user_id"].nunique(),
-        df.loc[df["event_name"] == "purchase", "user_id"].nunique()
-    ]
-})
-
-# Calculate conversion and drop-off
-funnel_data["Conversion from Previous (%)"] = (
-    funnel_data["Users"]
-    .div(funnel_data["Users"].shift(1))
-    .mul(100)
-)
-
-funnel_data["Drop-off Users"] = (
-    funnel_data["Users"].shift(1) - funnel_data["Users"]
-)
-
-funnel_data["Drop-off (%)"] = (
-    funnel_data["Drop-off Users"]
-    .div(funnel_data["Users"].shift(1))
-    .mul(100)
-)
-
-
-# ------------------------------------------------------------
-# Funnel chart
-# ------------------------------------------------------------
-
-st.bar_chart(
-    funnel_data.set_index("Stage")["Users"],
-    horizontal=True
-)
-
-
-# ------------------------------------------------------------
-# Funnel metrics
-# ------------------------------------------------------------
-
-st.dataframe(
-    funnel_data.style.format({
-        "Users": "{:,.0f}",
-        "Conversion from Previous (%)": "{:.2f}%",
-        "Drop-off Users": "{:,.0f}",
-        "Drop-off (%)": "{:.2f}%"
-    }),
-    use_container_width=True,
-    hide_index=True
-)
-# ============================================================
-# PROJECT OVERVIEW
-# ============================================================
-
-st.divider()
-
-st.subheader("Project Overview")
-
-st.write(
-    """
-    This dashboard analyzes the ShopFlow e-commerce customer journey
-    from product discovery through purchase. It combines funnel
-    analysis, acquisition performance, revenue analytics, retention,
-    and A/B testing to identify product growth opportunities.
-    """
-)
-
-
-# ============================================================
-# KEY FINDINGS
-# ============================================================
-
-st.subheader("Key Findings")
-
-col1, col2 = st.columns(2)
-
-with col1:
-
-    st.markdown(
-        """
-        **🛒 Funnel**
-
-        Overall purchase conversion is **37.56%**.
-
-        The largest funnel drop-off occurs between
-        **product view and add to cart**.
-        """
-    )
-
-    st.markdown(
-        """
-        **📱 Device**
-
-        Mobile conversion is **34.01%**, compared with
-        **40.60% on web**.
-        """
-    )
-
-with col2:
-
-    st.markdown(
-        """
-        **🧪 Experiment**
-
-        Treatment conversion is **40.88%** compared with
-        **34.17% for control**, a **19.65% relative lift**.
-        """
-    )
-
-    st.markdown(
-        """
-        **💰 Revenue**
-
-        Total purchase revenue is approximately
-        **$30.21M**.
-        """
-    )
-
-
-# ============================================================
-# DATA PREVIEW
-# ============================================================
-
-with st.expander("View event data"):
-
-    st.dataframe(
-        df.head(100),
-        use_container_width=True
-    )
-# ============================================================
-# DEVICE PERFORMANCE
-# ============================================================
-
-st.divider()
-
-st.subheader("📱 Conversion by Device")
-
-device_funnel = (
-    df.groupby("device")
-    .apply(
-        lambda x: pd.Series({
-            "Users": x["user_id"].nunique(),
-            "Purchasers": x.loc[
-                x["event_name"] == "purchase",
-                "user_id"
-            ].nunique()
-        }),
-        include_groups=False
-    )
-    .reset_index()
-)
-
-device_funnel["Conversion (%)"] = (
-    device_funnel["Purchasers"]
-    / device_funnel["Users"]
-    * 100
-)
-
-device_funnel = device_funnel.sort_values(
-    "Conversion (%)",
-    ascending=False
-)
-
-
-# ------------------------------------------------------------
-# Device conversion chart
-# ------------------------------------------------------------
-
-st.bar_chart(
-    device_funnel.set_index("device")["Conversion (%)"],
-    horizontal=True
-)
-
-
-# ------------------------------------------------------------
-# Device metrics table
-# ------------------------------------------------------------
-
-st.dataframe(
-    device_funnel.style.format({
-        "Users": "{:,.0f}",
-        "Purchasers": "{:,.0f}",
-        "Conversion (%)": "{:.2f}%"
-    }),
-    use_container_width=True,
-    hide_index=True
-)
-
-# ============================================================
-# REVENUE & ACQUISITION
-# ============================================================
-
-st.divider()
-
-st.subheader("💰 Revenue & Acquisition")
-
-
-# ============================================================
-# REVENUE KPIs
-# ============================================================
-
-purchase_df = df[df["event_name"] == "purchase"].copy()
+purchase_df = df[
+    df["event_name"] == "purchase"
+].copy()
 
 purchase_df["revenue"] = (
     purchase_df["price"] * purchase_df["quantity"]
 )
 
+total_users = df["user_id"].nunique()
+total_events = len(df)
+total_purchases = len(purchase_df)
+unique_purchasers = purchase_df["user_id"].nunique()
+
 total_revenue = purchase_df["revenue"].sum()
 
 average_order_value = (
-    purchase_df["revenue"].sum()
-    / len(purchase_df)
+    total_revenue / total_purchases
 )
 
 revenue_per_purchaser = (
-    purchase_df["revenue"].sum()
-    / purchase_df["user_id"].nunique()
+    total_revenue / unique_purchasers
 )
 
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric(
-        "Total Revenue",
-        f"${total_revenue:,.0f}"
-    )
-
-with col2:
-    st.metric(
-        "Average Order Value",
-        f"${average_order_value:,.2f}"
-    )
-
-with col3:
-    st.metric(
-        "Revenue per Purchaser",
-        f"${revenue_per_purchaser:,.2f}"
-    )
-
-
-# ============================================================
-# REVENUE BY TRAFFIC SOURCE
-# ============================================================
-
-st.subheader("Revenue by Traffic Source")
-
-source_revenue = (
-    purchase_df
-    .groupby("traffic_source")
-    .agg(
-        Purchases=("user_id", "size"),
-        Unique_Purchasers=("user_id", "nunique"),
-        Revenue=("revenue", "sum")
-    )
-    .reset_index()
-)
-
-source_revenue["AOV"] = (
-    source_revenue["Revenue"]
-    / source_revenue["Purchases"]
-)
-
-source_revenue["Revenue_per_Purchaser"] = (
-    source_revenue["Revenue"]
-    / source_revenue["Unique_Purchasers"]
-)
-
-source_revenue = source_revenue.sort_values(
-    "Revenue",
-    ascending=False
-)
-
-
-st.bar_chart(
-    source_revenue.set_index("traffic_source")["Revenue"],
-    horizontal=True
-)
-
-st.dataframe(
-    source_revenue.style.format({
-        "Purchases": "{:,.0f}",
-        "Unique_Purchasers": "{:,.0f}",
-        "Revenue": "${:,.2f}",
-        "AOV": "${:,.2f}",
-        "Revenue_per_Purchaser": "${:,.2f}"
-    }),
-    use_container_width=True,
-    hide_index=True
+purchase_conversion = (
+    unique_purchasers / total_users * 100
 )
 
 
 # ============================================================
-# REVENUE BY CATEGORY
+# SIDEBAR NAVIGATION
 # ============================================================
 
-st.subheader("Revenue by Product Category")
+st.sidebar.title("📊 ShopFlow")
 
-category_revenue = (
-    purchase_df
-    .groupby("category")
-    .agg(
-        Purchases=("user_id", "size"),
-        Unique_Purchasers=("user_id", "nunique"),
-        Revenue=("revenue", "sum")
-    )
-    .reset_index()
+st.sidebar.markdown(
+    "### Product Analytics"
 )
 
-category_revenue["AOV"] = (
-    category_revenue["Revenue"]
-    / category_revenue["Purchases"]
+page = st.sidebar.radio(
+    "Navigate",
+    [
+        "Overview",
+        "Funnel",
+        "Revenue",
+        "Retention",
+        "Experimentation"
+    ]
 )
 
-category_revenue = category_revenue.sort_values(
-    "Revenue",
-    ascending=False
+st.sidebar.divider()
+
+st.sidebar.caption(
+    "ShopFlow is a fictional e-commerce product "
+    "used for portfolio analysis."
 )
 
-
-st.bar_chart(
-    category_revenue.set_index("category")["Revenue"],
-    horizontal=True
-)
-
-st.dataframe(
-    category_revenue.style.format({
-        "Purchases": "{:,.0f}",
-        "Unique_Purchasers": "{:,.0f}",
-        "Revenue": "${:,.2f}",
-        "AOV": "${:,.2f}"
-    }),
-    use_container_width=True,
-    hide_index=True
-)
 
 # ============================================================
-# RETENTION ANALYSIS
+# PAGE HEADER
 # ============================================================
 
-st.divider()
+st.title("ShopFlow Product Analytics")
 
-st.subheader("🔄 User Retention")
-
-# First activity date for each user
-first_activity = (
-    df.groupby("user_id")["timestamp"]
-    .min()
-    .reset_index()
+st.caption(
+    "E-commerce product analytics dashboard"
 )
 
-first_activity["first_date"] = pd.to_datetime(
-    first_activity["timestamp"]
-).dt.date
 
+# ============================================================
+# OVERVIEW
+# ============================================================
 
-# Unique user activity dates
-activity_dates = df[["user_id", "timestamp"]].copy()
+if page == "Overview":
 
-activity_dates["activity_date"] = pd.to_datetime(
-    activity_dates["timestamp"]
-).dt.date
+    st.header("Executive Overview")
 
-activity_dates = activity_dates[
-    ["user_id", "activity_date"]
-].drop_duplicates()
-
-
-# Maximum date available in dataset
-max_date = activity_dates["activity_date"].max()
-
-
-# ------------------------------------------------------------
-# Calculate D1 / D7 / D30 retention
-# ------------------------------------------------------------
-
-retention_results = []
-
-for days in [1, 7, 30]:
-
-    first_activity["target_date"] = (
-        pd.to_datetime(first_activity["first_date"])
-        + pd.Timedelta(days=days)
-    ).dt.date
-
-    eligible = first_activity[
-        first_activity["target_date"] <= max_date
-    ].copy()
-
-    retained = eligible.merge(
-        activity_dates,
-        left_on=["user_id", "target_date"],
-        right_on=["user_id", "activity_date"],
-        how="inner"
-    )["user_id"].nunique()
-
-    eligible_users = eligible["user_id"].nunique()
-
-    retention_rate = (
-        retained / eligible_users * 100
-        if eligible_users > 0
-        else 0
+    st.markdown(
+        """
+        Analyze the ShopFlow customer journey from product
+        discovery through purchase using funnel analytics,
+        acquisition performance, revenue, retention, and
+        experimentation.
+        """
     )
 
-    retention_results.append({
-        "Metric": f"D{days}",
-        "Eligible Users": eligible_users,
-        "Retained Users": retained,
-        "Retention (%)": retention_rate
-    })
+    st.divider()
 
+    # --------------------------------------------------------
+    # KPI CARDS
+    # --------------------------------------------------------
 
-retention_df = pd.DataFrame(retention_results)
+    col1, col2, col3, col4, col5 = st.columns(5)
 
-
-# ------------------------------------------------------------
-# Retention metrics
-# ------------------------------------------------------------
-
-col1, col2, col3 = st.columns(3)
-
-for col, metric in zip(
-    [col1, col2, col3],
-    ["D1", "D7", "D30"]
-):
-
-    row = retention_df[
-        retention_df["Metric"] == metric
-    ].iloc[0]
-
-    with col:
+    with col1:
         st.metric(
-            f"{metric} Retention",
-            f"{row['Retention (%)']:.2f}%"
+            "Users",
+            f"{total_users:,}"
         )
 
+    with col2:
+        st.metric(
+            "Events",
+            f"{total_events:,}"
+        )
 
-st.bar_chart(
-    retention_df.set_index("Metric")["Retention (%)"]
-)
+    with col3:
+        st.metric(
+            "Purchases",
+            f"{total_purchases:,}"
+        )
 
-st.dataframe(
-    retention_df.style.format({
-        "Eligible Users": "{:,.0f}",
-        "Retained Users": "{:,.0f}",
-        "Retention (%)": "{:.2f}%"
-    }),
-    use_container_width=True,
-    hide_index=True
-)
+    with col4:
+        st.metric(
+            "Revenue",
+            f"${total_revenue:,.0f}"
+        )
+
+    with col5:
+        st.metric(
+            "Conversion",
+            f"{purchase_conversion:.2f}%"
+        )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # KEY FINDINGS
+    # --------------------------------------------------------
+
+    st.header("Key Findings")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.subheader("🛒 Funnel")
+
+        st.write(
+            f"Overall purchase conversion is "
+            f"**{purchase_conversion:.2f}%**."
+        )
+
+        st.write(
+            "The largest funnel drop-off occurs between "
+            "**product view and add to cart**."
+        )
+
+        st.subheader("📱 Device")
+
+        st.write(
+            "Mobile conversion is **34.01%**, compared "
+            "with **40.60%** on web."
+        )
+
+    with col2:
+
+        st.subheader("🧪 Experiment")
+
+        st.write(
+            "Treatment conversion is **40.88%** compared "
+            "with **34.17%** for control."
+        )
+
+        st.write(
+            "This represents a **19.65% relative lift**."
+        )
+
+        st.subheader("💰 Revenue")
+
+        st.write(
+            f"Total purchase revenue is approximately "
+            f"**${total_revenue:,.2f}**."
+        )
+
+    st.divider()
+
+    st.header("Project Scope")
+
+    st.markdown(
+        """
+        This project demonstrates:
+
+        - SQL analytics
+        - ETL pipeline development
+        - SQLite data modeling
+        - Funnel and conversion analysis
+        - User segmentation
+        - Revenue analytics
+        - Cohort retention
+        - A/B testing and statistical significance
+        - Streamlit dashboard development
+        """
+    )
 
 
 # ============================================================
-# A/B TESTING
+# FUNNEL
 # ============================================================
 
-st.subheader("🧪 A/B Test Results")
+elif page == "Funnel":
 
-experiment = (
-    df.groupby("experiment_group")
-    .agg(
-        Users=("user_id", "nunique")
-    )
-    .reset_index()
-)
+    st.header("🛒 Conversion Funnel")
 
-purchasers = (
-    df[df["event_name"] == "purchase"]
-    .groupby("experiment_group")["user_id"]
-    .nunique()
-    .reset_index(name="Purchasers")
-)
+    funnel_data = pd.DataFrame({
+        "Stage": [
+            "App Open",
+            "View Product",
+            "Add to Cart",
+            "Checkout Start",
+            "Purchase"
+        ],
+        "Users": [
+            df.loc[
+                df["event_name"] == "app_open",
+                "user_id"
+            ].nunique(),
 
-experiment = experiment.merge(
-    purchasers,
-    on="experiment_group",
-    how="left"
-)
+            df.loc[
+                df["event_name"] == "view_product",
+                "user_id"
+            ].nunique(),
 
-experiment["Conversion (%)"] = (
-    experiment["Purchasers"]
-    / experiment["Users"]
-    * 100
-)
+            df.loc[
+                df["event_name"] == "add_to_cart",
+                "user_id"
+            ].nunique(),
 
+            df.loc[
+                df["event_name"] == "checkout_start",
+                "user_id"
+            ].nunique(),
 
-# ------------------------------------------------------------
-# Calculate lift
-# ------------------------------------------------------------
+            df.loc[
+                df["event_name"] == "purchase",
+                "user_id"
+            ].nunique()
+        ]
+    })
 
-control_rate = experiment.loc[
-    experiment["experiment_group"] == "control",
-    "Conversion (%)"
-].iloc[0]
-
-treatment_rate = experiment.loc[
-    experiment["experiment_group"] == "treatment",
-    "Conversion (%)"
-].iloc[0]
-
-absolute_lift = treatment_rate - control_rate
-
-relative_lift = (
-    absolute_lift / control_rate * 100
-)
-
-
-# ------------------------------------------------------------
-# Display experiment metrics
-# ------------------------------------------------------------
-
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        "Control Conversion",
-        f"{control_rate:.2f}%"
+    funnel_data["Conversion from Previous (%)"] = (
+        funnel_data["Users"]
+        .div(funnel_data["Users"].shift(1))
+        .mul(100)
     )
 
-with col2:
-    st.metric(
-        "Treatment Conversion",
-        f"{treatment_rate:.2f}%"
+    funnel_data["Drop-off Users"] = (
+        funnel_data["Users"].shift(1)
+        - funnel_data["Users"]
     )
 
-with col3:
-    st.metric(
-        "Absolute Lift",
-        f"+{absolute_lift:.2f} pp"
+    funnel_data["Drop-off (%)"] = (
+        funnel_data["Drop-off Users"]
+        .div(funnel_data["Users"].shift(1))
+        .mul(100)
     )
 
-with col4:
-    st.metric(
-        "Relative Lift",
-        f"+{relative_lift:.2f}%"
+    # --------------------------------------------------------
+    # Funnel chart
+    # --------------------------------------------------------
+
+    st.bar_chart(
+        funnel_data.set_index("Stage")["Users"],
+        horizontal=True
+    )
+
+    # --------------------------------------------------------
+    # Funnel table
+    # --------------------------------------------------------
+
+    st.dataframe(
+        funnel_data.style.format({
+            "Users": "{:,.0f}",
+            "Conversion from Previous (%)": "{:.2f}%",
+            "Drop-off Users": "{:,.0f}",
+            "Drop-off (%)": "{:.2f}%"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # DEVICE FUNNEL
+    # --------------------------------------------------------
+
+    st.header("📱 Conversion by Device")
+
+    device_data = []
+
+    for device, group in df.groupby("device"):
+
+        users = group["user_id"].nunique()
+
+        purchasers = group.loc[
+            group["event_name"] == "purchase",
+            "user_id"
+        ].nunique()
+
+        device_data.append({
+            "Device": device,
+            "Users": users,
+            "Purchasers": purchasers,
+            "Conversion (%)": (
+                purchasers / users * 100
+            )
+        })
+
+    device_df = pd.DataFrame(device_data)
+
+    device_df = device_df.sort_values(
+        "Conversion (%)",
+        ascending=False
+    )
+
+    st.bar_chart(
+        device_df.set_index("Device")["Conversion (%)"],
+        horizontal=True
+    )
+
+    st.dataframe(
+        device_df.style.format({
+            "Users": "{:,.0f}",
+            "Purchasers": "{:,.0f}",
+            "Conversion (%)": "{:.2f}%"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.info(
+        "Mobile conversion is 34.01%, compared with "
+        "40.60% on web — a 6.59 percentage-point gap."
     )
 
 
-st.bar_chart(
-    experiment.set_index("experiment_group")["Conversion (%)"]
-)
+# ============================================================
+# REVENUE
+# ============================================================
+
+elif page == "Revenue":
+
+    st.header("💰 Revenue & Acquisition")
+
+    # --------------------------------------------------------
+    # Revenue KPIs
+    # --------------------------------------------------------
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric(
+            "Total Revenue",
+            f"${total_revenue:,.0f}"
+        )
+
+    with col2:
+        st.metric(
+            "Average Order Value",
+            f"${average_order_value:,.2f}"
+        )
+
+    with col3:
+        st.metric(
+            "Revenue per Purchaser",
+            f"${revenue_per_purchaser:,.2f}"
+        )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # Revenue by Traffic Source
+    # --------------------------------------------------------
+
+    st.header("📣 Revenue by Traffic Source")
+
+    source_revenue = (
+        purchase_df
+        .groupby("traffic_source")
+        .agg(
+            Purchases=("user_id", "size"),
+            Unique_Purchasers=("user_id", "nunique"),
+            Revenue=("revenue", "sum")
+        )
+        .reset_index()
+    )
+
+    source_revenue["AOV"] = (
+        source_revenue["Revenue"]
+        / source_revenue["Purchases"]
+    )
+
+    source_revenue["Revenue per Purchaser"] = (
+        source_revenue["Revenue"]
+        / source_revenue["Unique_Purchasers"]
+    )
+
+    source_revenue = source_revenue.sort_values(
+        "Revenue",
+        ascending=False
+    )
+
+    st.bar_chart(
+        source_revenue.set_index(
+            "traffic_source"
+        )["Revenue"],
+        horizontal=True
+    )
+
+    st.dataframe(
+        source_revenue.style.format({
+            "Purchases": "{:,.0f}",
+            "Unique_Purchasers": "{:,.0f}",
+            "Revenue": "${:,.2f}",
+            "AOV": "${:,.2f}",
+            "Revenue per Purchaser": "${:,.2f}"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.divider()
+
+    # --------------------------------------------------------
+    # Revenue by Category
+    # --------------------------------------------------------
+
+    st.header("🛍️ Revenue by Product Category")
+
+    category_revenue = (
+        purchase_df
+        .groupby("category")
+        .agg(
+            Purchases=("user_id", "size"),
+            Unique_Purchasers=("user_id", "nunique"),
+            Revenue=("revenue", "sum")
+        )
+        .reset_index()
+    )
+
+    category_revenue["AOV"] = (
+        category_revenue["Revenue"]
+        / category_revenue["Purchases"]
+    )
+
+    category_revenue = category_revenue.sort_values(
+        "Revenue",
+        ascending=False
+    )
+
+    st.bar_chart(
+        category_revenue.set_index(
+            "category"
+        )["Revenue"],
+        horizontal=True
+    )
+
+    st.dataframe(
+        category_revenue.style.format({
+            "Purchases": "{:,.0f}",
+            "Unique_Purchasers": "{:,.0f}",
+            "Revenue": "${:,.2f}",
+            "AOV": "${:,.2f}"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
 
 
-st.dataframe(
-    experiment.style.format({
-        "Users": "{:,.0f}",
-        "Purchasers": "{:,.0f}",
-        "Conversion (%)": "{:.2f}%"
-    }),
-    use_container_width=True,
-    hide_index=True
-)
+# ============================================================
+# RETENTION
+# ============================================================
+
+elif page == "Retention":
+
+    st.header("🔄 User Retention")
+
+    first_activity = (
+        df.groupby("user_id")["timestamp"]
+        .min()
+        .reset_index()
+    )
+
+    first_activity["first_date"] = (
+        first_activity["timestamp"].dt.date
+    )
+
+    activity_dates = df[
+        ["user_id", "timestamp"]
+    ].copy()
+
+    activity_dates["activity_date"] = (
+        activity_dates["timestamp"].dt.date
+    )
+
+    activity_dates = activity_dates[
+        ["user_id", "activity_date"]
+    ].drop_duplicates()
+
+    max_date = activity_dates["activity_date"].max()
+
+    retention_results = []
+
+    for days in [1, 7, 30]:
+
+        first_activity["target_date"] = (
+            pd.to_datetime(
+                first_activity["first_date"]
+            )
+            + pd.Timedelta(days=days)
+        ).dt.date
+
+        eligible = first_activity[
+            first_activity["target_date"] <= max_date
+        ].copy()
+
+        retained = eligible.merge(
+            activity_dates,
+            left_on=[
+                "user_id",
+                "target_date"
+            ],
+            right_on=[
+                "user_id",
+                "activity_date"
+            ],
+            how="inner"
+        )["user_id"].nunique()
+
+        eligible_users = (
+            eligible["user_id"].nunique()
+        )
+
+        retention_rate = (
+            retained / eligible_users * 100
+            if eligible_users > 0
+            else 0
+        )
+
+        retention_results.append({
+            "Metric": f"D{days}",
+            "Eligible Users": eligible_users,
+            "Retained Users": retained,
+            "Retention (%)": retention_rate
+        })
+
+    retention_df = pd.DataFrame(
+        retention_results
+    )
+
+    # --------------------------------------------------------
+    # Retention KPIs
+    # --------------------------------------------------------
+
+    col1, col2, col3 = st.columns(3)
+
+    for col, metric in zip(
+        [col1, col2, col3],
+        ["D1", "D7", "D30"]
+    ):
+
+        row = retention_df[
+            retention_df["Metric"] == metric
+        ].iloc[0]
+
+        with col:
+            st.metric(
+                f"{metric} Retention",
+                f"{row['Retention (%)']:.2f}%"
+            )
+
+    st.bar_chart(
+        retention_df.set_index(
+            "Metric"
+        )["Retention (%)"]
+    )
+
+    st.dataframe(
+        retention_df.style.format({
+            "Eligible Users": "{:,.0f}",
+            "Retained Users": "{:,.0f}",
+            "Retention (%)": "{:.2f}%"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.info(
+        "Retention is calculated only among users who have "
+        "enough observation time for each measurement point."
+    )
 
 
-st.info(
-    "The treatment group shows a 6.71 percentage-point "
-    "conversion improvement over control. The statistical "
-    "significance test is documented in src/analyze_ab_test.py."
-)
+# ============================================================
+# EXPERIMENTATION
+# ============================================================
+
+elif page == "Experimentation":
+
+    st.header("🧪 A/B Test Results")
+
+    experiment = (
+        df.groupby("experiment_group")
+        .agg(
+            Users=("user_id", "nunique")
+        )
+        .reset_index()
+    )
+
+    purchasers = (
+        purchase_df
+        .groupby("experiment_group")["user_id"]
+        .nunique()
+        .reset_index(
+            name="Purchasers"
+        )
+    )
+
+    experiment = experiment.merge(
+        purchasers,
+        on="experiment_group",
+        how="left"
+    )
+
+    experiment["Conversion (%)"] = (
+        experiment["Purchasers"]
+        / experiment["Users"]
+        * 100
+    )
+
+    control_rate = experiment.loc[
+        experiment["experiment_group"] == "control",
+        "Conversion (%)"
+    ].iloc[0]
+
+    treatment_rate = experiment.loc[
+        experiment["experiment_group"] == "treatment",
+        "Conversion (%)"
+    ].iloc[0]
+
+    absolute_lift = (
+        treatment_rate - control_rate
+    )
+
+    relative_lift = (
+        absolute_lift
+        / control_rate
+        * 100
+    )
+
+    # --------------------------------------------------------
+    # Experiment KPIs
+    # --------------------------------------------------------
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            "Control",
+            f"{control_rate:.2f}%"
+        )
+
+    with col2:
+        st.metric(
+            "Treatment",
+            f"{treatment_rate:.2f}%"
+        )
+
+    with col3:
+        st.metric(
+            "Absolute Lift",
+            f"+{absolute_lift:.2f} pp"
+        )
+
+    with col4:
+        st.metric(
+            "Relative Lift",
+            f"+{relative_lift:.2f}%"
+        )
+
+    st.divider()
+
+    st.bar_chart(
+        experiment.set_index(
+            "experiment_group"
+        )["Conversion (%)"]
+    )
+
+    st.dataframe(
+        experiment.style.format({
+            "Users": "{:,.0f}",
+            "Purchasers": "{:,.0f}",
+            "Conversion (%)": "{:.2f}%"
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.success(
+        "The treatment increased conversion by "
+        "6.71 percentage points (19.65% relative lift). "
+        "The statistical test in src/analyze_ab_test.py "
+        "found the result statistically significant."
+    )
