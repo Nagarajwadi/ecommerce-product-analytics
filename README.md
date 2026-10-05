@@ -3,6 +3,7 @@
 A portfolio-ready Product Analytics project analyzing the customer journey of a fictional e-commerce product, **ShopFlow**.
 
 The project combines data generation, ETL, SQL analytics, funnel analysis, revenue analysis, retention, A/B testing, and an interactive Streamlit dashboard to identify product growth opportunities.
+<img width="1853" height="992" alt="image" src="https://github.com/user-attachments/assets/d511c1ff-451d-456a-89ed-ca36d9cfd686" />
 
 ---
 
