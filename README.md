@@ -5,6 +5,15 @@ A portfolio-ready Product Analytics project analyzing the customer journey of a 
 The project combines data generation, ETL, SQL analytics, funnel analysis, revenue analysis, retention, A/B testing, and an interactive Streamlit dashboard to identify product growth opportunities.
 <img width="1853" height="992" alt="image" src="https://github.com/user-attachments/assets/d511c1ff-451d-456a-89ed-ca36d9cfd686" />
 
+
+---
+
+## 📊 Dashboard
+
+The Streamlit dashboard provides interactive views of the ShopFlow product analytics results, including funnel performance, revenue, retention, and experimentation.
+
+![ShopFlow Product Analytics Dashboard](screenshots/dashboard_overview.png)
+
 ---
 
 ## 📌 Project Overview
@@ -35,6 +44,21 @@ The analysis is designed to help a product team improve:
 5. **Experiment-driven product decisions**
 
 ---
+
+## 💡 Executive Takeaways
+
+The analysis identified several opportunities for improving ShopFlow's product performance:
+
+- **Overall funnel conversion is 37.56%**, with the largest drop occurring between **Product View → Add to Cart**, where 31.28% of users are lost.
+- **Mobile conversion is 34.01%**, compared with **40.60% on web**, suggesting an opportunity to investigate mobile product-page and shopping-flow friction.
+- **Email has the highest overall conversion at 39.29%**, while **organic** generates the highest total revenue at approximately **$10.76M**.
+- **Sports** generates the highest category revenue at approximately **$5.62M**, while **Furniture** has the highest average order value at approximately **$7,492**.
+- **D1 retention is 9.49%, D7 retention is 6.67%, and D30 retention is 4.90%**, highlighting the importance of improving repeat engagement.
+- The **A/B test treatment group increased conversion from 34.17% to 40.88%**, representing a **6.71 percentage-point lift** and **19.65% relative improvement**.
+- The A/B test result is **statistically significant (p < 0.001)** based on a two-proportion z-test.
+
+---
+
 
 ## 📊 Dataset
 
