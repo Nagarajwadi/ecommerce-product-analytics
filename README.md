@@ -5,6 +5,25 @@ A portfolio-ready Product Analytics project analyzing the customer journey of a 
 The project combines data generation, ETL, SQL analytics, funnel analysis, revenue analysis, retention, A/B testing, and an interactive Streamlit dashboard to identify product growth opportunities.
 
 
+
+---
+
+
+## 🌐 Live Portfolio
+
+Explore the project website for the conversion funnel,
+project architecture, and business recommendations.
+
+**[Open the Product Analytics Portfolio](https://nagarajwadi.github.io/ecommerce-product-analytics/)**
+
+## 🛠️ Tech Stack
+
+- **Programming:** Python, Pandas, NumPy
+- **Analytics:** SQL, funnel analysis, retention, A/B testing
+- **Database:** SQLite
+- **Dashboard:** Streamlit
+- **Deployment:** GitHub Pages
+
 ---
 
 ## 📊 Dashboard
