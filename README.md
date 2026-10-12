@@ -144,8 +144,6 @@ data/product_analytics.db
 
 
 
----
-
 ## Run the Project Locally
 
 ### 1. Clone the repository
