@@ -137,3 +137,75 @@ data/product_analytics.db
       │            Dashboard
       ▼               │
  Business Insights ◄──┘
+
+
+
+
+
+
+---
+
+## 🚀 Run the Project Locally
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/Nagarajwadi/ecommerce-product-analytics.git
+cd ecommerce-product-analytics
+```
+
+### 2. Create and activate a virtual environment
+
+```bash
+python -m venv .venv
+```
+
+Windows:
+
+```bash
+.venv\Scripts\activate
+```
+
+macOS / Linux:
+
+```bash
+source .venv/bin/activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Generate the data
+
+```bash
+python src/generate_data.py
+```
+
+### 5. Run the ETL pipeline
+
+```bash
+python etl/etl_pipeline.py
+```
+
+### 6. Set up the database
+
+```bash
+python sql/setup_database.py
+```
+
+### 7. Explore the analysis
+
+Review the SQL scripts in the `sql/` directory and the project notebooks.
+
+### Dashboard
+
+To launch the Streamlit dashboard, first locate the main Python application file in `dashboard/`, then run:
+
+```bash
+streamlit run dashboard/APP_FILE.py
+```
+
+Replace `APP_FILE.py` with the actual filename of your dashboard application.
