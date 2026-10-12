@@ -69,7 +69,64 @@
   </header>
 
   
-<section>
+
+  
+  <main>
+    <section>
+      <h2>Project Overview</h2>
+      <p>
+        An end-to-end product analytics project exploring customer journeys,
+        product engagement, shopping cart behavior, and purchase conversion.
+        The project uses synthetic e-commerce event data to identify funnel
+        drop-offs and demonstrate data-driven product analysis.
+      </p>
+    </section>
+
+    <section>
+      <h2>Project at a Glance</h2>
+      <div class="metrics">
+        <div class="metric"><strong>10,000</strong>Users</div>
+        <div class="metric"><strong>45,147</strong>Sessions</div>
+        <div class="metric"><strong>133,785</strong>Events</div>
+        <div class="metric"><strong>37.56%</strong>Overall funnel conversion</div>
+      </div>
+      <p><small>Metrics are from the project's synthetic dataset and funnel analysis.</small></p>
+    </section>
+
+    <section>
+      <h2>Key Insights</h2>
+      <ul>
+        <li>97.9% of users viewed a product after opening the app.</li>
+        <li>31.28% dropped off between product viewing and adding to cart.</li>
+        <li>29.50% dropped off between adding to cart and starting checkout.</li>
+        <li>79.19% of checkout starters reached purchase.</li>
+      </ul>
+      <p>
+        These results highlight opportunities to improve product discovery,
+        cart engagement, and the checkout experience.
+      </p>
+    </section>
+
+    <section>
+      <h2>Tools & Technologies</h2>
+      <p>Python · Pandas · NumPy · SQLite · SQL · Streamlit · Git · GitHub</p>
+      <h2>Project Workflow</h2>
+      <p>Data Generation → ETL & Validation → SQLite → SQL Funnel Analysis → Insights</p>
+    </section>
+
+    <section>
+      <h2>Explore the Project</h2>
+      <p>
+        Review the source code, analysis queries, data pipeline, and project
+        documentation in the GitHub repository.
+      </p>
+      <a class="button" href="https://github.com/Nagarajwadi/ecommerce-product-analytics">
+        Explore Source Code
+      </a>
+    </section>
+
+
+    <section>
   <h2>Conversion Funnel Analysis</h2>
   <p>
     Tracking how users move from opening the app to completing a purchase
@@ -200,60 +257,57 @@
   </p>
 </section>
 
-  
-  <main>
-    <section>
-      <h2>Project Overview</h2>
-      <p>
-        An end-to-end product analytics project exploring customer journeys,
-        product engagement, shopping cart behavior, and purchase conversion.
-        The project uses synthetic e-commerce event data to identify funnel
-        drop-offs and demonstrate data-driven product analysis.
-      </p>
-    </section>
+<section>
+  <h2>Business Recommendations</h2>
+  <p>
+    Funnel analysis helps identify where to investigate friction
+    in the customer journey. The following recommendations are
+    hypotheses to validate with further analysis and experiments.
+  </p>
 
-    <section>
-      <h2>Project at a Glance</h2>
-      <div class="metrics">
-        <div class="metric"><strong>10,000</strong>Users</div>
-        <div class="metric"><strong>45,147</strong>Sessions</div>
-        <div class="metric"><strong>133,785</strong>Events</div>
-        <div class="metric"><strong>37.56%</strong>Overall funnel conversion</div>
-      </div>
-      <p><small>Metrics are from the project's synthetic dataset and funnel analysis.</small></p>
-    </section>
+  <h3>1. Improve Product-to-Cart Conversion</h3>
+  <p>
+    <strong>Finding:</strong> 3,062 users dropped off between
+    viewing a product and adding it to the cart.
+  </p>
+  <p>
+    <strong>Recommendation:</strong> Investigate product-page
+    clarity, pricing, delivery information, and Add to Cart usability.
+  </p>
+  <p><strong>Metric:</strong> Product-view-to-cart conversion rate.</p>
 
-    <section>
-      <h2>Key Insights</h2>
-      <ul>
-        <li>97.9% of users viewed a product after opening the app.</li>
-        <li>31.28% dropped off between product viewing and adding to cart.</li>
-        <li>29.50% dropped off between adding to cart and starting checkout.</li>
-        <li>79.19% of checkout starters reached purchase.</li>
-      </ul>
-      <p>
-        These results highlight opportunities to improve product discovery,
-        cart engagement, and the checkout experience.
-      </p>
-    </section>
+  <h3>2. Reduce Checkout Abandonment</h3>
+  <p>
+    <strong>Finding:</strong> 987 users dropped off between
+    starting checkout and completing a purchase.
+  </p>
+  <p>
+    <strong>Recommendation:</strong> Investigate unexpected fees,
+    payment failures, and checkout form complexity.
+  </p>
+  <p><strong>Metric:</strong> Checkout-to-purchase conversion rate.</p>
 
-    <section>
-      <h2>Tools & Technologies</h2>
-      <p>Python · Pandas · NumPy · SQLite · SQL · Streamlit · Git · GitHub</p>
-      <h2>Project Workflow</h2>
-      <p>Data Generation → ETL & Validation → SQLite → SQL Funnel Analysis → Insights</p>
-    </section>
+  <h3>3. Validate Changes with A/B Testing</h3>
+  <p>
+    <strong>Recommendation:</strong> Test a product-page improvement
+    against the existing experience before rolling it out.
+  </p>
+  <p>
+    <strong>Primary metric:</strong> Add-to-cart conversion rate.
+    <strong> Guardrail:</strong> Purchase conversion rate.
+  </p>
 
-    <section>
-      <h2>Explore the Project</h2>
-      <p>
-        Review the source code, analysis queries, data pipeline, and project
-        documentation in the GitHub repository.
-      </p>
-      <a class="button" href="https://github.com/Nagarajwadi/ecommerce-product-analytics">
-        Explore Source Code
-      </a>
-    </section>
+  <p>
+    <em>
+      These recommendations are hypotheses based on a synthetic
+      dataset. Their impact must be validated through further
+      analysis or controlled experiments.
+    </em>
+  </p>
+</section>
+
+
+    
   </main>
 
   <footer>
