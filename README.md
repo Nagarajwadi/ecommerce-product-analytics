@@ -9,12 +9,17 @@ The project combines data generation, ETL, SQL analytics, funnel analysis, reven
 ---
 
 
-## 🌐 Live Portfolio
+## 🌐 Live Project
 
-Explore the project website for the conversion funnel,
-project architecture, and business recommendations.
+Explore the project through these two links:
 
-**[Open the Product Analytics Portfolio](https://nagarajwadi.github.io/ecommerce-product-analytics/)**
+- **[Open the Product Analytics Portfolio](https://nagarajwadi.github.io/ecommerce-product-analytics/)**
+  - Project overview, architecture, funnel insights, and business recommendations.
+- **[Launch the Interactive Streamlit Dashboard](https://ecommerce-appuct-analytics-zipgne35fdmhvzdbfnzvtw.streamlit.app/)**
+  - Explore Overview, Funnel, Revenue, Retention, and Experimentation analyses.
+
+*Note: ShopFlow is a fictional e-commerce product, and the analysis uses synthetic data generated for this portfolio project.*
+
 
 ## 🛠️ Tech Stack
 
