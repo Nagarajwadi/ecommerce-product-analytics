@@ -191,5 +191,4 @@ streamlit run dashboard/app.py
 
 Streamlit will provide a local URL where you can open the interactive dashboard.
 
-```
 
