@@ -110,42 +110,41 @@ The project uses a synthetic e-commerce event dataset generated specifically for
 
 ```text
 Raw Event Data
-      │
-      ▼
+      |
+      v
 Data Generation
 src/generate_data.py
-      │
-      ▼
+      |
+      v
 Raw CSV
 data/raw/raw_events.csv
-      │
-      ▼
+      |
+      v
 ETL Pipeline
 etl/etl_pipeline.py
-      │
-      ▼
+      |
+      v
 Clean CSV
 data/processed/clean_events.csv
-      │
-      ▼
+      |
+      v
 SQLite Database
 data/product_analytics.db
-      │
-      ├───────────────┐
-      ▼               ▼
-   SQL Analysis   Streamlit
-      │            Dashboard
-      ▼               │
- Business Insights ◄──┘
-
-
-
+      |
+      +-------------------+
+      |                   |
+      v                   v
+ SQL Analysis      Streamlit Dashboard
+      |                   |
+      +---------+---------+
+                |
+                v
+        Business Insights
+```
 
 
 
 ---
-
-
 
 ## Run the Project Locally
 
@@ -196,4 +195,3 @@ Streamlit will provide a local URL where you can open the interactive dashboard.
 
 ```
 
-Replace `APP_FILE.py` with the actual filename of your dashboard application.
