@@ -637,10 +637,90 @@ elif page == "Retention":
         hide_index=True
     )
 
+
     st.info(
         "Retention is calculated only among users who have "
         "enough observation time for each measurement point."
     )
+
+    # --------------------------------------------------------
+    # COHORT RETENTION
+    # --------------------------------------------------------
+
+    st.divider()
+    st.subheader("📅 Cohort Retention by First Observed Activity")
+
+    cohort_sql_path = BASE_DIR / "sql" / "retention_cohorts.sql"
+    cohort_query = cohort_sql_path.read_text(encoding="utf-8")
+
+    # Open a separate read-only connection; this view never writes to SQLite.
+    readonly_uri = f"{DB_PATH.resolve().as_uri()}?mode=ro"
+    with sqlite3.connect(readonly_uri, uri=True) as cohort_connection:
+        cohort_df = pd.read_sql_query(cohort_query, cohort_connection)
+
+    if cohort_df.empty:
+        st.warning("No cohort retention results are available.")
+    else:
+        chart_columns = [
+            "d1_retention_pct",
+            "d7_retention_pct",
+            "d30_retention_pct",
+        ]
+        st.line_chart(
+            cohort_df.set_index("cohort_month")[chart_columns]
+        )
+
+        display_columns = [
+            "cohort_month",
+            "cohort_users",
+            "d1_eligible_users",
+            "d1_users",
+            "d1_retention_pct",
+            "d7_eligible_users",
+            "d7_users",
+            "d7_retention_pct",
+            "d30_eligible_users",
+            "d30_users",
+            "d30_retention_pct",
+        ]
+        display_cohorts = cohort_df[display_columns].copy()
+        display_cohorts = display_cohorts.rename(columns={
+            "cohort_month": "Cohort Month",
+            "cohort_users": "Cohort Users",
+            "d1_eligible_users": "D1 Eligible",
+            "d1_users": "D1 Retained",
+            "d1_retention_pct": "D1 Retention (%)",
+            "d7_eligible_users": "D7 Eligible",
+            "d7_users": "D7 Retained",
+            "d7_retention_pct": "D7 Retention (%)",
+            "d30_eligible_users": "D30 Eligible",
+            "d30_users": "D30 Retained",
+            "d30_retention_pct": "D30 Retention (%)",
+        })
+
+        st.dataframe(
+            display_cohorts.style.format({
+                "Cohort Users": "{:,.0f}",
+                "D1 Eligible": "{:,.0f}",
+                "D1 Retained": "{:,.0f}",
+                "D1 Retention (%)": "{:.2f}%",
+                "D7 Eligible": "{:,.0f}",
+                "D7 Retained": "{:,.0f}",
+                "D7 Retention (%)": "{:.2f}%",
+                "D30 Eligible": "{:,.0f}",
+                "D30 Retained": "{:,.0f}",
+                "D30 Retention (%)": "{:.2f}%",
+            }, na_rep="Not mature"),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.caption(
+            "Cohorts use first observed activity, not signup date. "
+            "D1/D7/D30 measure activity on the exact day. Each rate "
+            "uses only users with enough observation time; 'Not mature' "
+            "means no eligible users are available for that horizon."
+        )
 
 
 # ============================================================
