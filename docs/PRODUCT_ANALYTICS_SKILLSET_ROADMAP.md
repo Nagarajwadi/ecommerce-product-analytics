@@ -24,7 +24,7 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 ## Phase 3 — Warehouse and ETL engineering
 
 - [x] Document event grain, keys, metric definitions, and lineage (`docs/ANALYTICS_METRIC_DICTIONARY.md`, `docs/WAREHOUSE_AND_ETL_DESIGN.md`).
-- [ ] Design fact and dimension tables and a star schema.
+- [x] Design fact and dimension tables and a logical star schema (`docs/STAR_SCHEMA_DESIGN.md`; design only, physical migration deferred).
 - [ ] Add raw/staging/analytics layers and reusable transformations.
 - [ ] Add incremental-load design, idempotency, and late-arriving-event handling.
 - [x] Test schema, nullability, accepted values, and core data-quality rules (`tests/test_etl_quality.py`, 11 tests). Uniqueness, referential integrity, and source-to-target reconciliation remain future work.
