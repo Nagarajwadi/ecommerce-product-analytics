@@ -17,9 +17,9 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 - [x] Define funnel user/session grain and event ordering (ordered funnel uses session grain).
 - [x] Add step-to-step conversion and drop-off SQL (`sql/sequential_funnel.sql`, covered by tests).
 - [ ] Add signup/activity retention cohorts and cohort-size-aware retention rates.
-- [ ] Compare segments by device, acquisition source, and engagement.
+- [x] Compare segments by device, acquisition source, and engagement (`sql/segment_conversion.sql`, `sql/engagement_conversion.sql`, dashboard Segmentation page).
 - [ ] Add campaign/experiment comparisons without implying causality from observational differences.
-- [ ] Deliver dashboard views and prioritized, evidence-linked recommendations.
+- [x] Deliver dashboard views and prioritized, evidence-linked recommendations (`dashboard/app.py`, `docs/PRODUCT_INSIGHTS_AND_RECOMMENDATIONS.md`).
 
 ## Phase 3 — Warehouse and ETL engineering
 
