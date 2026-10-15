@@ -26,24 +26,28 @@ DB_PATH = BASE_DIR / "data" / "product_analytics.db"
 
 @st.cache_data
 def load_data():
+    # Read-only connection protects the local analytics database.
+    readonly_uri = f"{DB_PATH.resolve().as_uri()}?mode=ro"
+    with sqlite3.connect(readonly_uri, uri=True) as connection:
+        data = pd.read_sql_query("SELECT * FROM events", connection)
 
-    connection = sqlite3.connect(DB_PATH)
-
-    data = pd.read_sql_query(
-        "SELECT * FROM events",
-        connection
-    )
-
-    connection.close()
-
-    data["timestamp"] = pd.to_datetime(
-        data["timestamp"]
-    )
-
+    data["timestamp"] = pd.to_datetime(data["timestamp"])
     return data
 
 
+@st.cache_data
+def load_sql_result(relative_path: str) -> pd.DataFrame:
+    """Run a repository SQL analysis using a read-only SQLite connection."""
+    query_path = BASE_DIR / relative_path
+    query = query_path.read_text(encoding="utf-8")
+    readonly_uri = f"{DB_PATH.resolve().as_uri()}?mode=ro"
+    with sqlite3.connect(readonly_uri, uri=True) as connection:
+        return pd.read_sql_query(query, connection)
+
+
 df = load_data()
+funnel_sql = load_sql_result("sql/sequential_funnel.sql")
+segment_sql = load_sql_result("sql/segment_conversion.sql")
 
 
 # ============================================================
@@ -95,6 +99,7 @@ page = st.sidebar.radio(
         "Funnel",
         "Revenue",
         "Retention",
+        "Segmentation",
         "Experimentation"
     ]
 )
@@ -193,28 +198,38 @@ if page == "Overview":
         )
 
         st.write(
-            "The largest funnel drop-off occurs between "
-            "**product view and add to cart**."
+            "The largest drop-off is calculated from the "
+            "ordered session funnel on the Funnel page."
         )
 
-        st.subheader("📱 Device")
+        st.subheader("📱 Segmentation")
 
-        st.write(
-            "Mobile conversion is **34.01%**, compared "
-            "with **40.60%** on web."
-        )
+        device_segments = segment_sql[
+            segment_sql["segment_type"] == "device"
+        ].sort_values("conversion_pct", ascending=False)
+
+        if not device_segments.empty:
+            best_device = device_segments.iloc[0]
+            st.write(
+                f"Highest observed device conversion: **{best_device['segment']}** "
+                f"({best_device['conversion_pct']:.2f}%)."
+            )
+            st.caption(
+                "Descriptive user-level comparison; device is assigned from "
+                "each user's earliest observed event."
+            )
 
     with col2:
 
         st.subheader("🧪 Experiment")
 
         st.write(
-            "Treatment conversion is **40.88%** compared "
-            "with **34.17%** for control."
+            "See the Experimentation page for conversion by assignment group."
         )
 
-        st.write(
-            "This represents a **19.65% relative lift**."
+        st.caption(
+            "These synthetic results are educational and should not be "
+            "interpreted causally without validating assignment and exposure."
         )
 
         st.subheader("💰 Revenue")
@@ -253,65 +268,35 @@ elif page == "Funnel":
 
     st.header("🛒 Conversion Funnel")
 
-    funnel_data = pd.DataFrame({
-        "Stage": [
-            "App Open",
-            "View Product",
-            "Add to Cart",
-            "Checkout Start",
-            "Purchase"
-        ],
-        "Users": [
-            df.loc[
-                df["event_name"] == "app_open",
-                "user_id"
-            ].nunique(),
-
-            df.loc[
-                df["event_name"] == "view_product",
-                "user_id"
-            ].nunique(),
-
-            df.loc[
-                df["event_name"] == "add_to_cart",
-                "user_id"
-            ].nunique(),
-
-            df.loc[
-                df["event_name"] == "checkout_start",
-                "user_id"
-            ].nunique(),
-
-            df.loc[
-                df["event_name"] == "purchase",
-                "user_id"
-            ].nunique()
-        ]
+    stage_labels = {
+        "app_open": "App Open",
+        "view_product": "View Product",
+        "add_to_cart": "Add to Cart",
+        "checkout_start": "Checkout Start",
+        "purchase": "Purchase",
+    }
+    funnel_data = funnel_sql.copy()
+    funnel_data["Stage"] = funnel_data["stage"].map(stage_labels)
+    funnel_data = funnel_data.rename(columns={
+        "sessions": "Sessions",
+        "conversion_from_previous_pct": "Conversion from Previous (%)",
+        "drop_off_sessions": "Drop-off Sessions",
+        "drop_off_pct": "Drop-off (%)",
+        "conversion_from_entry_pct": "Conversion from Entry (%)",
     })
-
-    funnel_data["Conversion from Previous (%)"] = (
-        funnel_data["Users"]
-        .div(funnel_data["Users"].shift(1))
-        .mul(100)
-    )
-
-    funnel_data["Drop-off Users"] = (
-        funnel_data["Users"].shift(1)
-        - funnel_data["Users"]
-    )
-
-    funnel_data["Drop-off (%)"] = (
-        funnel_data["Drop-off Users"]
-        .div(funnel_data["Users"].shift(1))
-        .mul(100)
-    )
 
     # --------------------------------------------------------
     # Funnel chart
     # --------------------------------------------------------
 
+    st.caption(
+        "This is an ordered, session-level funnel. A session advances only "
+        "when each event occurs strictly after the previous stage in the same "
+        "session. One user may contribute multiple sessions."
+    )
+
     st.bar_chart(
-        funnel_data.set_index("Stage")["Users"],
+        funnel_data.set_index("Stage")["Sessions"],
         horizontal=True
     )
 
@@ -320,12 +305,16 @@ elif page == "Funnel":
     # --------------------------------------------------------
 
     st.dataframe(
-        funnel_data.style.format({
-            "Users": "{:,.0f}",
+        funnel_data[[
+            "Stage", "Sessions", "Conversion from Previous (%)",
+            "Drop-off Sessions", "Drop-off (%)", "Conversion from Entry (%)"
+        ]].style.format({
+            "Sessions": "{:,.0f}",
             "Conversion from Previous (%)": "{:.2f}%",
-            "Drop-off Users": "{:,.0f}",
-            "Drop-off (%)": "{:.2f}%"
-        }),
+            "Drop-off Sessions": "{:,.0f}",
+            "Drop-off (%)": "{:.2f}%",
+            "Conversion from Entry (%)": "{:.2f}%"
+        }, na_rep="—"),
         use_container_width=True,
         hide_index=True
     )
@@ -338,32 +327,16 @@ elif page == "Funnel":
 
     st.header("📱 Conversion by Device")
 
-    device_data = []
-
-    for device, group in df.groupby("device"):
-
-        users = group["user_id"].nunique()
-
-        purchasers = group.loc[
-            group["event_name"] == "purchase",
-            "user_id"
-        ].nunique()
-
-        device_data.append({
-            "Device": device,
-            "Users": users,
-            "Purchasers": purchasers,
-            "Conversion (%)": (
-                purchasers / users * 100
-            )
-        })
-
-    device_df = pd.DataFrame(device_data)
-
-    device_df = device_df.sort_values(
-        "Conversion (%)",
-        ascending=False
-    )
+    device_df = segment_sql[
+        segment_sql["segment_type"] == "device"
+    ][["segment", "users", "purchasers", "non_purchasers", "conversion_pct"]]
+    device_df = device_df.rename(columns={
+        "segment": "Device",
+        "users": "Users",
+        "purchasers": "Purchasers",
+        "non_purchasers": "Non-purchasers",
+        "conversion_pct": "Conversion (%)",
+    }).sort_values("Conversion (%)", ascending=False)
 
     st.bar_chart(
         device_df.set_index("Device")["Conversion (%)"],
@@ -380,10 +353,56 @@ elif page == "Funnel":
         hide_index=True
     )
 
-    st.info(
-        "Mobile conversion is 34.01%, compared with "
-        "40.60% on web — a 6.59 percentage-point gap."
+    st.caption(
+        "Each user is assigned to the device from their earliest observed event. "
+        "These are descriptive comparisons, not causal estimates."
     )
+
+
+# ============================================================
+# SEGMENTATION
+# ============================================================
+
+elif page == "Segmentation":
+
+    st.header("🧭 User Conversion Segmentation")
+    st.caption(
+        "Each user is counted once per dimension and assigned to the device "
+        "and traffic source on their earliest observed event. Results are "
+        "descriptive; traffic source is not a verified campaign attribution."
+    )
+
+    for segment_type, heading in [
+        ("device", "Conversion by Device"),
+        ("traffic_source", "Conversion by Traffic Source"),
+    ]:
+        st.subheader(heading)
+        segment_df = segment_sql[
+            segment_sql["segment_type"] == segment_type
+        ][["segment", "users", "purchasers", "non_purchasers", "conversion_pct"]]
+        segment_df = segment_df.rename(columns={
+            "segment": "Segment",
+            "users": "Users",
+            "purchasers": "Purchasers",
+            "non_purchasers": "Non-purchasers",
+            "conversion_pct": "Conversion (%)",
+        }).sort_values("Conversion (%)", ascending=False)
+
+        if segment_df.empty:
+            st.info("No segment data is available.")
+            continue
+
+        st.bar_chart(segment_df.set_index("Segment")["Conversion (%)"], horizontal=True)
+        st.dataframe(
+            segment_df.style.format({
+                "Users": "{:,.0f}",
+                "Purchasers": "{:,.0f}",
+                "Non-purchasers": "{:,.0f}",
+                "Conversion (%)": "{:.2f}%",
+            }),
+            use_container_width=True,
+            hide_index=True,
+        )
 
 
 # ============================================================
