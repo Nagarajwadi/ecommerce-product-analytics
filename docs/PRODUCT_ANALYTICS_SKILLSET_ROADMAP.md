@@ -27,7 +27,7 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 - [ ] Design fact and dimension tables and a star schema.
 - [ ] Add raw/staging/analytics layers and reusable transformations.
 - [ ] Add incremental-load design, idempotency, and late-arriving-event handling.
-- [ ] Test schema, nullability, uniqueness, referential integrity, accepted values, and reconciliation.
+- [x] Test schema, nullability, accepted values, and core data-quality rules (`tests/test_etl_quality.py`, 11 tests). Uniqueness, referential integrity, and source-to-target reconciliation remain future work.
 - [ ] Document recovery, run instructions, and pipeline limitations.
 
 ## Phase 4 — Advanced SQL and Hive
