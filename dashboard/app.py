@@ -48,6 +48,7 @@ def load_sql_result(relative_path: str) -> pd.DataFrame:
 df = load_data()
 funnel_sql = load_sql_result("sql/sequential_funnel.sql")
 segment_sql = load_sql_result("sql/segment_conversion.sql")
+engagement_sql = load_sql_result("sql/engagement_conversion.sql")
 
 
 # ============================================================
@@ -403,6 +404,36 @@ elif page == "Segmentation":
             use_container_width=True,
             hide_index=True,
         )
+
+    st.divider()
+    st.subheader("Conversion by Engagement")
+    st.caption(
+        "Engagement is proxied by the number of distinct sessions observed per user. "
+        "This is descriptive; users with longer observation windows may accumulate more sessions."
+    )
+    engagement_df = engagement_sql.rename(columns={
+        "segment": "Engagement Segment",
+        "users": "Users",
+        "purchasers": "Purchasers",
+        "non_purchasers": "Non-purchasers",
+        "conversion_pct": "Conversion (%)",
+        "avg_sessions_per_user": "Avg. Sessions per User",
+    })
+    st.bar_chart(
+        engagement_df.set_index("Engagement Segment")["Conversion (%)"],
+        horizontal=True,
+    )
+    st.dataframe(
+        engagement_df.style.format({
+            "Users": "{:,.0f}",
+            "Purchasers": "{:,.0f}",
+            "Non-purchasers": "{:,.0f}",
+            "Conversion (%)": "{:.2f}%",
+            "Avg. Sessions per User": "{:.2f}",
+        }),
+        use_container_width=True,
+        hide_index=True,
+    )
 
 
 # ============================================================
