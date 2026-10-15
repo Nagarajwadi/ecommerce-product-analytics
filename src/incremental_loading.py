@@ -73,6 +73,9 @@ def process_incremental_batch(
     accepted. No input frame is mutated.
     """
     identity_columns = list(identity_columns)
+    if list(existing_events.columns) != list(incoming_batch.columns):
+        raise ValueError("Existing and incoming batches must have identical column order.")
+
     for label, frame in (
         ("existing_events", existing_events),
         ("incoming_batch", incoming_batch),
@@ -80,9 +83,6 @@ def process_incremental_batch(
         missing = [col for col in identity_columns if col not in frame.columns]
         if missing:
             raise ValueError(f"{label} is missing identity columns: {missing}")
-
-    if list(existing_events.columns) != list(incoming_batch.columns):
-        raise ValueError("Existing and incoming batches must have identical column order.")
 
     existing = existing_events.copy(deep=True)
     incoming = incoming_batch.copy(deep=True)
