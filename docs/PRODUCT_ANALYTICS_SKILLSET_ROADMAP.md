@@ -14,8 +14,8 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 
 ## Phase 2 — Funnels, cohorts, segmentation, and campaigns
 
-- [ ] Define funnel user/session grain and event ordering.
-- [ ] Add step-to-step conversion and drop-off SQL.
+- [x] Define funnel user/session grain and event ordering (ordered funnel uses session grain).
+- [x] Add step-to-step conversion and drop-off SQL (`sql/sequential_funnel.sql`, covered by tests).
 - [ ] Add signup/activity retention cohorts and cohort-size-aware retention rates.
 - [ ] Compare segments by device, acquisition source, and engagement.
 - [ ] Add campaign/experiment comparisons without implying causality from observational differences.
