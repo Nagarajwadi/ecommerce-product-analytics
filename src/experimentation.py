@@ -1,7 +1,7 @@
 """Reusable statistical helpers for binary-conversion A/B tests.
 
-These functions assume independent observations and a fixed-horizon design.
-They do not correct for clustering, repeated users, covariates, or sequential peeking.
+Functions assume independent randomized units and a fixed-horizon design unless
+noted otherwise. They do not fix broken assignment, clustering, or peeking.
 """
 from __future__ import annotations
 
@@ -80,11 +80,7 @@ def required_sample_size_per_group(
     alpha: float = 0.05,
     power: float = 0.80,
 ) -> int:
-    """Approximate equal-sized group sample size for an absolute rate difference.
-
-    Uses the standard normal approximation under the alternative. The MDE is
-    absolute (e.g. 0.02 means +2 percentage points), not a relative percent.
-    """
+    """Approximate equal-sized group sample size for an absolute rate difference."""
     if not 0 < baseline_rate < 1:
         raise ValueError("baseline_rate must be between 0 and 1")
     if not 0 < minimum_detectable_effect < 1:
@@ -119,3 +115,60 @@ def interpret_result(p_value: float, alpha: float = 0.05) -> str:
         if p_value < alpha
         else "Not statistically significant at the chosen alpha."
     )
+
+
+def sample_ratio_mismatch(
+    control_count: int, treatment_count: int, expected_treatment_share: float = 0.5
+) -> dict[str, float | bool]:
+    """One-degree-of-freedom chi-square sample-ratio mismatch diagnostic.
+
+    A significant result flags assignment-count imbalance for investigation;
+    it does not identify the cause. Counts should represent unique randomized
+    units, not event rows. This test is not a substitute for balance checks.
+    """
+    if not isinstance(control_count, int) or not isinstance(treatment_count, int):
+        raise TypeError("group counts must be integers")
+    if control_count < 0 or treatment_count < 0 or control_count + treatment_count == 0:
+        raise ValueError("group counts must be nonnegative with a positive total")
+    if not 0 < expected_treatment_share < 1:
+        raise ValueError("expected_treatment_share must be between 0 and 1")
+    total = control_count + treatment_count
+    expected_treatment = total * expected_treatment_share
+    expected_control = total * (1 - expected_treatment_share)
+    statistic = (
+        (treatment_count - expected_treatment) ** 2 / expected_treatment
+        + (control_count - expected_control) ** 2 / expected_control
+    )
+    p_value = 2 * (1 - _NORMAL.cdf(math.sqrt(statistic)))
+    p_value = min(1.0, max(0.0, p_value))
+    return {
+        "chi_square": statistic,
+        "p_value": p_value,
+        "flagged_at_0_05": p_value < 0.05,
+        "observed_treatment_share": treatment_count / total,
+        "expected_treatment_share": expected_treatment_share,
+    }
+
+
+def holm_bonferroni(p_values: list[float]) -> list[float]:
+    """Return Holm-adjusted p-values in the original input order.
+
+    Use for a pre-defined family of hypotheses; it cannot repair post-hoc
+    cherry-picking or selective reporting.
+    """
+    if any(not 0 <= p <= 1 for p in p_values):
+        raise ValueError("all p-values must be between 0 and 1")
+    count = len(p_values)
+    if count == 0:
+        return []
+    order = sorted(range(count), key=p_values.__getitem__)
+    adjusted_sorted = []
+    running_max = 0.0
+    for rank, index in enumerate(order):
+        adjusted = min(1.0, (count - rank) * p_values[index])
+        running_max = max(running_max, adjusted)
+        adjusted_sorted.append((index, running_max))
+    result = [0.0] * count
+    for index, adjusted in adjusted_sorted:
+        result[index] = adjusted
+    return result
