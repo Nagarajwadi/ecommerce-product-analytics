@@ -36,6 +36,25 @@ def test_two_proportion_test_no_difference():
     assert result["absolute_lift"] == 0
     assert result["p_value"] == pytest.approx(1)
 
+def test_two_proportion_test_p_value_is_stable_for_large_z_score():
+    result = two_proportion_z_test(
+        control_successes=100,
+        control_total=1000,
+        treatment_successes=300,
+        treatment_total=1000,
+    )
+    assert result["z_score"] > 5
+    assert result["p_value"] < 1e-6
+
+def test_two_proportion_test_p_value_is_stable_for_large_z_score():
+    result = two_proportion_z_test(
+        control_successes=100,
+        control_total=1000,
+        treatment_successes=300,
+        treatment_total=1000,
+    )
+    assert result["z_score"] > 5
+    assert result["p_value"] == 0.0 or 0 < result["p_value"] < 1e-6
 
 def test_confidence_interval_contains_observed_difference():
     low, high = difference_confidence_interval(340, 1000, 410, 1000)

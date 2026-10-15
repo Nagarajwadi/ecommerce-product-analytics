@@ -19,7 +19,7 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 - [x] Add first-observed-activity retention cohorts with maturity-aware D1/D7/D30 rates (`sql/retention_cohorts.sql`, dashboard Retention page, and `tests/test_retention_cohorts.py`).
 - [ ] Add signup-based retention cohorts after a reliable signup timestamp is available in the analysis dataset; current event data supports first-observed-activity cohorts only.
 - [x] Compare segments by device, acquisition source, and engagement (`sql/segment_conversion.sql`, `sql/engagement_conversion.sql`, dashboard Segmentation page).
-- [ ] Add campaign/experiment comparisons without implying causality from observational differences.
+- [x] Add campaign/experiment comparisons without implying causality from observational differences (`sql/ab_test_analysis.sql`, dashboard Experimentation page, `src/experimentation.py`, and `tests/test_experimentation.py`; synthetic-data limitations documented).
 - [x] Deliver dashboard views and prioritized, evidence-linked recommendations (`dashboard/app.py`, `docs/PRODUCT_INSIGHTS_AND_RECOMMENDATIONS.md`).
 
 ## Phase 3 — Warehouse and ETL engineering

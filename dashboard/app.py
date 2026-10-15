@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-
+from src.experimentation import (
+    difference_confidence_interval,
+    two_proportion_z_test,
+)
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -777,32 +780,32 @@ elif page == "Retention":
 # EXPERIMENTATION
 # ============================================================
 
+
 elif page == "Experimentation":
 
     st.header("🧪 A/B Test Results")
 
+    # Count users assigned to each observed experiment group.
     experiment = (
-        df.groupby("experiment_group")
-        .agg(
-            Users=("user_id", "nunique")
-        )
+        df.dropna(subset=["experiment_group"])
+        .groupby("experiment_group")
+        .agg(Users=("user_id", "nunique"))
         .reset_index()
     )
 
     purchasers = (
-        purchase_df
+        purchase_df.dropna(subset=["experiment_group"])
         .groupby("experiment_group")["user_id"]
         .nunique()
-        .reset_index(
-            name="Purchasers"
-        )
+        .reset_index(name="Purchasers")
     )
 
     experiment = experiment.merge(
         purchasers,
         on="experiment_group",
-        how="left"
+        how="left",
     )
+    experiment["Purchasers"] = experiment["Purchasers"].fillna(0)
 
     experiment["Conversion (%)"] = (
         experiment["Purchasers"]
@@ -810,77 +813,129 @@ elif page == "Experimentation":
         * 100
     )
 
-    control_rate = experiment.loc[
-        experiment["experiment_group"] == "control",
-        "Conversion (%)"
-    ].iloc[0]
-
-    treatment_rate = experiment.loc[
-        experiment["experiment_group"] == "treatment",
-        "Conversion (%)"
-    ].iloc[0]
-
-    absolute_lift = (
-        treatment_rate - control_rate
-    )
-
-    relative_lift = (
-        absolute_lift
-        / control_rate
-        * 100
-    )
-
-    # --------------------------------------------------------
-    # Experiment KPIs
-    # --------------------------------------------------------
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "Control",
-            f"{control_rate:.2f}%"
-        )
-
-    with col2:
-        st.metric(
-            "Treatment",
-            f"{treatment_rate:.2f}%"
-        )
-
-    with col3:
-        st.metric(
-            "Absolute Lift",
-            f"+{absolute_lift:.2f} pp"
-        )
-
-    with col4:
-        st.metric(
-            "Relative Lift",
-            f"+{relative_lift:.2f}%"
-        )
-
-    st.divider()
-
-    st.bar_chart(
-        experiment.set_index(
-            "experiment_group"
-        )["Conversion (%)"]
-    )
-
     st.dataframe(
         experiment.style.format({
             "Users": "{:,.0f}",
             "Purchasers": "{:,.0f}",
-            "Conversion (%)": "{:.2f}%"
+            "Conversion (%)": "{:.2f}%",
         }),
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
     )
 
-    st.success(
-        "The treatment increased conversion by "
-        "6.71 percentage points (19.65% relative lift). "
-        "The statistical test in src/analyze_ab_test.py "
-        "found the result statistically significant."
-    )
+    required_groups = {"control", "treatment"}
+    observed_groups = set(experiment["experiment_group"].astype(str))
+
+    missing_groups = required_groups - observed_groups
+    unknown_groups = observed_groups - required_groups
+    missing_assignments = int(df["experiment_group"].isna().sum())
+
+    if missing_assignments:
+        st.warning(
+            f"{missing_assignments:,} event rows have no experiment-group "
+            "assignment and are excluded from this comparison."
+        )
+
+    if unknown_groups:
+        st.warning(
+            "Unexpected experiment groups found: "
+            + ", ".join(sorted(unknown_groups))
+            + ". Review assignments before interpreting results."
+        )
+
+    if missing_groups:
+        st.warning(
+            "Cannot calculate the experiment comparison. Missing group(s): "
+            + ", ".join(sorted(missing_groups))
+        )
+    else:
+        control = experiment.loc[
+            experiment["experiment_group"] == "control"
+        ].iloc[0]
+
+        treatment = experiment.loc[
+            experiment["experiment_group"] == "treatment"
+        ].iloc[0]
+
+        control_users = int(control["Users"])
+        control_purchasers = int(control["Purchasers"])
+        treatment_users = int(treatment["Users"])
+        treatment_purchasers = int(treatment["Purchasers"])
+
+        if control_users == 0 or treatment_users == 0:
+            st.warning(
+                "Both experiment groups must contain users to calculate "
+                "conversion and statistical significance."
+            )
+        else:
+            result = two_proportion_z_test(
+                control_purchasers,
+                control_users,
+                treatment_purchasers,
+                treatment_users,
+            )
+
+            ci_lower, ci_upper = difference_confidence_interval(
+                control_purchasers,
+                control_users,
+                treatment_purchasers,
+                treatment_users,
+            )
+
+            control_rate = result["control_rate"] * 100
+            treatment_rate = result["treatment_rate"] * 100
+            absolute_lift = result["absolute_lift"] * 100
+            relative_lift = result["relative_lift"] * 100
+            p_value = result["p_value"]
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            col1.metric("Control", f"{control_rate:.2f}%")
+            col2.metric("Treatment", f"{treatment_rate:.2f}%")
+            col3.metric(
+                "Absolute Lift",
+                f"{absolute_lift:+.2f} pp",
+            )
+            col4.metric(
+                "Relative Lift",
+                f"{relative_lift:+.2f}%"
+                if pd.notna(relative_lift)
+                else "N/A",
+            )
+
+            st.caption(
+                f"Two-sided z-test p-value: {p_value:.6g} | "
+                f"Z-score: {result['z_score']:.3f}"
+            )
+
+            st.caption(
+                "95% confidence interval for absolute lift: "
+                f"[{ci_lower * 100:+.2f}, {ci_upper * 100:+.2f}] "
+                "percentage points."
+            )
+
+            st.bar_chart(
+                experiment.set_index("experiment_group")["Conversion (%)"]
+            )
+
+            if p_value < 0.05:
+                st.info(
+                    "The observed conversion difference is statistically "
+                    "significant at the 0.05 level. Statistical significance "
+                    "does not establish practical importance or prove "
+                    "causality on its own."
+                )
+            else:
+                st.info(
+                    "The observed conversion difference is not statistically "
+                    "significant at the 0.05 level. This does not prove "
+                    "that the groups are equivalent."
+                )
+
+            st.caption(
+                "Interpretation note: this project uses synthetic data. "
+                "The comparison is illustrative, not evidence of a real "
+                "product effect. Causal interpretation requires valid "
+                "random assignment, a suitable analysis design, and "
+                "consistent outcome measurement."
+            )

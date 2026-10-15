@@ -44,7 +44,7 @@ def two_proportion_z_test(
         z_score, p_value = 0.0, 1.0
     else:
         z_score = (p1 - p0) / se
-        p_value = 2 * (1 - _NORMAL.cdf(abs(z_score)))
+        p_value = 2 * _NORMAL.cdf(-abs(z_score))
     return {
         "control_rate": p0,
         "treatment_rate": p1,

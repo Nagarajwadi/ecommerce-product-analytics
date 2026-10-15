@@ -116,6 +116,36 @@ Helping users resume a shopping journey or recover an unfinished cart may improv
 - Keep maturity-aware denominators, eligible counts, returner counts, and rates visible in the SQL output and dashboard.
 - Investigate and document the July 1 timestamp boundary in a future generator-quality task; do not silently remove the events from the existing database.
 
+## Finding 5 — Synthetic experiment-group conversion comparison
+
+**Observed evidence**
+
+| Metric | Control | Treatment |
+|---|---:|---:|
+| Users | 4,949 | 5,051 |
+| Purchasers | 1,691 | 2,065 |
+| User-level purchase conversion | 34.17% | 40.88% |
+
+- Absolute lift (treatment minus control): approximately **+6.71 percentage points**.
+- Relative lift: approximately **+19.65%**.
+- The two-sided two-proportion z-test indicates a statistically significant difference at the 0.05 level.
+- User-level assignment validation found no users with multiple distinct experiment-group assignments.
+
+**Interpretation and limitations**
+
+This comparison demonstrates how to calculate conversion rates, absolute and relative lift, a p-value, and a confidence interval. The dataset is synthetic, and the generator intentionally applies different behavior probabilities to the treatment group. The result therefore demonstrates the analysis workflow rather than validating a real product intervention.
+
+Consistent group assignments and reasonably balanced group sizes are useful checks, but they do not independently establish causal validity. A real experiment also requires verified random assignment, exposure and eligibility definitions, a predeclared primary metric, appropriate observation windows, and a suitable statistical analysis plan.
+
+Statistical significance does not establish practical importance. The observed lift should not be presented as a forecast of the improvement a live product would achieve.
+
+**Recommended next steps**
+
+- Keep the analysis at user level and validate assignment, exposure, missingness, and outcome definitions.
+- Predefine the primary metric, guardrails, sample size, and stopping rule for any real experiment.
+- Report confidence intervals alongside p-values and distinguish statistical significance from business importance.
+- Avoid causal claims for observational device, source, and engagement comparisons.
+
 ## Prioritized action plan
 
 | Priority | Action | Why | Success measure |
