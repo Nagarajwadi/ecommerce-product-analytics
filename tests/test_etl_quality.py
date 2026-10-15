@@ -97,3 +97,30 @@ def test_data_quality_rejects_invalid_values(column, value, message):
 def test_data_quality_accepts_null_price_and_quantity_for_non_purchase_event():
     df = sample_events()
     validate_data_quality(df)
+
+def test_transform_parses_documented_timestamp_format_without_warning():
+    import warnings
+
+    df = sample_events()
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        transformed = transform_data(df)
+
+    assert str(transformed["timestamp"].dtype).startswith("datetime64")
+    assert transformed.loc[0, "timestamp"] == pd.Timestamp("2026-01-01 10:00:00")
+    assert not [
+        warning for warning in caught
+        if "Could not infer format" in str(warning.message)
+    ]
+
+
+def test_transform_coerces_invalid_timestamp_for_quality_check():
+    df = sample_events()
+    df.loc[0, "timestamp"] = "not-a-timestamp"
+
+    transformed = transform_data(df)
+
+    assert transformed["timestamp"].isna().any()
+    with pytest.raises(ValueError, match="invalid or missing timestamps"):
+        validate_data_quality(transformed)
+
