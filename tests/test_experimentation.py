@@ -5,8 +5,10 @@ import pytest
 from src.experimentation import (
     conversion_rate,
     difference_confidence_interval,
+    holm_bonferroni,
     interpret_result,
     required_sample_size_per_group,
+    sample_ratio_mismatch,
     two_proportion_z_test,
 )
 
@@ -60,3 +62,30 @@ def test_interpretation_uses_alpha():
 def test_relative_lift_is_nan_when_control_rate_zero():
     result = two_proportion_z_test(0, 100, 5, 100)
     assert math.isnan(result["relative_lift"])
+
+
+def test_sample_ratio_mismatch_accepts_balanced_assignment():
+    result = sample_ratio_mismatch(5000, 5000)
+    assert result["p_value"] == pytest.approx(1.0)
+    assert result["flagged_at_0_05"] is False
+
+
+def test_sample_ratio_mismatch_flags_large_imbalance():
+    result = sample_ratio_mismatch(6000, 4000)
+    assert result["flagged_at_0_05"] is True
+    assert result["observed_treatment_share"] == pytest.approx(0.4)
+
+
+def test_sample_ratio_mismatch_rejects_invalid_counts():
+    with pytest.raises(ValueError):
+        sample_ratio_mismatch(0, 0)
+
+
+def test_holm_bonferroni_adjusts_p_values_in_original_order():
+    assert holm_bonferroni([0.01, 0.04, 0.03]) == pytest.approx([0.03, 0.06, 0.06])
+
+
+def test_holm_bonferroni_handles_empty_input_and_invalid_values():
+    assert holm_bonferroni([]) == []
+    with pytest.raises(ValueError):
+        holm_bonferroni([1.1])
