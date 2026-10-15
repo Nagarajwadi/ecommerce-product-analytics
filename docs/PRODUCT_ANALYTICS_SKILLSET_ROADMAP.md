@@ -25,10 +25,10 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 
 - [x] Document event grain, keys, metric definitions, and lineage (`docs/ANALYTICS_METRIC_DICTIONARY.md`, `docs/WAREHOUSE_AND_ETL_DESIGN.md`).
 - [x] Design fact and dimension tables and a logical star schema (`docs/STAR_SCHEMA_DESIGN.md`; design only, physical migration deferred).
-- [ ] Add raw/staging/analytics layers and reusable transformations.
-- [ ] Add incremental-load design, idempotency, and late-arriving-event handling.
-- [x] Test schema, nullability, accepted values, and core data-quality rules (`tests/test_etl_quality.py`, 11 tests). Uniqueness, referential integrity, and source-to-target reconciliation remain future work.
-- [ ] Document recovery, run instructions, and pipeline limitations.
+- [x] Add an in-memory raw/staging/analytics prototype and reusable transformations (`src/warehouse_layers.py`; no persistence).
+- [x] Document the event identity and ingestion contract (`docs/INGESTION_CONTRACT.md`) and prototype in-memory incremental batch idempotency (`src/incremental_loading.py`). Stable source event IDs, production late-arriving-event handling, and persistence remain unfinished.
+- [x] Test schema, nullability, accepted values, and core data-quality rules (`tests/test_etl_quality.py`). Explicit timestamp parsing for the documented `%Y-%m-%d %H:%M:%S` format is covered by regression tests. In-memory layer reconciliation is covered by `tests/test_warehouse_quality.py`. Production uniqueness, referential integrity, and persisted source-to-target reconciliation remain future work.
+- [ ] Document recovery and production run instructions. Prototype limitations are documented in `docs/WAREHOUSE_LAYERS_PROTOTYPE.md`, `docs/WAREHOUSE_QUALITY_RECONCILIATION.md`, `docs/INCREMENTAL_LOADING_PROTOTYPE.md`, and `docs/INGESTION_CONTRACT.md`.
 
 ## Phase 4 — Advanced SQL and Hive
 
