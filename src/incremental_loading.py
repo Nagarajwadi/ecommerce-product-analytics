@@ -114,7 +114,12 @@ def process_incremental_batch(
     duplicate_within_batch = max(0, duplicates_excluded - duplicate_existing)
 
     accepted = incoming.loc[accepted_indices, existing.columns].copy()
-    combined = pd.concat([existing, accepted], ignore_index=True)
+    # Avoid concat with a zero-row frame: pandas may coerce existing extension
+    # dtypes (for example StringDtype) even though no rows are being appended.
+    if accepted.empty:
+        combined = existing.copy(deep=True).reset_index(drop=True)
+    else:
+        combined = pd.concat([existing, accepted], ignore_index=True)
 
     return {
         "events": combined,
