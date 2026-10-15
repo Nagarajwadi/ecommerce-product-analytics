@@ -23,7 +23,7 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 
 ## Phase 3 — Warehouse and ETL engineering
 
-- [ ] Document event grain, keys, metric definitions, and lineage.
+- [x] Document event grain, keys, metric definitions, and lineage (`docs/ANALYTICS_METRIC_DICTIONARY.md`, `docs/WAREHOUSE_AND_ETL_DESIGN.md`).
 - [ ] Design fact and dimension tables and a star schema.
 - [ ] Add raw/staging/analytics layers and reusable transformations.
 - [ ] Add incremental-load design, idempotency, and late-arriving-event handling.
