@@ -118,8 +118,12 @@ def transform_data(df):
     # Convert timestamp
     # --------------------------------------------------------
 
+    # Raw event timestamps currently use the explicit YYYY-MM-DD HH:MM:SS
+    # format. Explicit parsing avoids pandas inference warnings and keeps
+    # malformed values as NaT so validate_data_quality can reject them.
     df["timestamp"] = pd.to_datetime(
         df["timestamp"],
+        format="%Y-%m-%d %H:%M:%S",
         errors="coerce",
     )
 
