@@ -82,6 +82,40 @@ The engagement proxy is the number of distinct observed sessions per user. This 
 **Product hypothesis**
 Helping users resume a shopping journey or recover an unfinished cart may improve task completion. Do not optimize for session count itself; optimize for user value and successful task completion.
 
+## Finding 4 — Retention by first observed activity cohort
+
+**Method**
+- Cohorts are grouped by the month of each user's first observed event, not by signup date. The event table does not contain a signup timestamp.
+- D1, D7, and D30 are exact-day retention: a user is retained only if an event occurs exactly 1, 7, or 30 calendar days after first observed activity.
+- Each horizon uses only users whose target day is on or before the maximum observed activity date. This maturity-aware denominator is important for recent cohorts.
+- The analysis was checked with a read-only Python calculation aligned to `sql/retention_cohorts.sql`; the cohort counts, eligible denominators, returner counts, and rates matched.
+
+**Observed evidence**
+
+| First-activity cohort | Users | D1 eligible | D1 retained | D1 rate | D7 eligible | D7 retained | D7 rate | D30 eligible | D30 retained | D30 rate |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Jan 2026 | 592 | 592 | 15 | 2.53% | 592 | 20 | 3.38% | 592 | 18 | 3.04% |
+| Feb 2026 | 1,146 | 1,146 | 43 | 3.75% | 1,146 | 27 | 2.36% | 1,146 | 32 | 2.79% |
+| Mar 2026 | 1,730 | 1,730 | 75 | 4.34% | 1,730 | 54 | 3.12% | 1,730 | 70 | 4.05% |
+| Apr 2026 | 1,866 | 1,866 | 89 | 4.77% | 1,866 | 85 | 4.56% | 1,866 | 96 | 5.14% |
+| May 2026 | 2,157 | 2,157 | 177 | 8.21% | 2,157 | 149 | 6.91% | 2,157 | 151 | 7.00% |
+| Jun 2026 | 2,509 | 2,509 | 542 | 21.60% | 1,906 | 286 | 15.01% | 83 | 0 | 0.00%* |
+
+\* June D30 is highly preliminary: only 83 users are eligible, so 0 observed returners should not be treated as a stable long-term retention estimate.
+
+**Interpretation and limitations**
+- D1 and D7 rates rise substantially in the May and June first-activity cohorts. The increase appears across device and traffic-source segments rather than being isolated to one segment.
+- Later cohorts have fewer observed sessions on average (5.39 in January versus 3.86 in June) and shorter first-to-last activity spans (123.48 versus 8.49 days).
+- The generator assigns each user 1–8 sessions and samples session dates from signup through the configured end date. The inspected behavior probabilities do not include an explicit time-based retention increase. These mechanics and the shorter observation span are important context, but they do not by themselves prove the cause of the exact-day retention increase.
+- The stored events include 3 events from 2 users on 2026-07-01, despite the generator's configured end date of 2026-06-30. This is consistent with adding random minutes to a session date near midnight. The extra day is small but affects the maximum date used for retention eligibility.
+- These results describe a synthetic dataset. They do not establish that a real product improved retention, and first-observed-activity cohorts must not be presented as signup cohorts.
+
+**Recommended next analysis**
+- If signup retention is needed, add a documented signup timestamp to the analysis dataset and build signup-based cohorts separately.
+- Consider a clearly defined observation window and compare cohort behavior with the generator design in mind.
+- Keep maturity-aware denominators, eligible counts, returner counts, and rates visible in the SQL output and dashboard.
+- Investigate and document the July 1 timestamp boundary in a future generator-quality task; do not silently remove the events from the existing database.
+
 ## Prioritized action plan
 
 | Priority | Action | Why | Success measure |
@@ -89,7 +123,8 @@ Helping users resume a shopping journey or recover an unfinished cart may improv
 | 1 | Analyze product-view-to-cart by device and category | Largest observed funnel drop-off | Ordered view-to-cart conversion, with counts and confidence intervals |
 | 2 | Diagnose mobile funnel friction | Mobile user-level conversion is 6.59 pp below web | Stage-level mobile vs web conversion and uncertainty |
 | 3 | Rebuild engagement analysis with fixed windows and pre-purchase sessions | Current engagement relationship may be confounded or reverse-causal | Conversion/time-to-purchase by comparable pre-purchase engagement |
-| 4 | Design one controlled experiment from the strongest diagnosed friction | Validate impact rather than infer causality from observational gaps | Predeclared primary metric, guardrails, sample size, and confidence interval |
+| 4 | Validate the retention cohort pattern and its synthetic-data limitations | D1/D7 rates rise in later cohorts, while observation spans shorten | Reproducible exact-day rates with eligible counts and a documented cohort definition |
+| 5 | Design one controlled experiment from the strongest diagnosed friction | Validate impact rather than infer causality from observational gaps | Predeclared primary metric, guardrails, sample size, and confidence interval |
 
 ## Metric definitions and caveats
 
