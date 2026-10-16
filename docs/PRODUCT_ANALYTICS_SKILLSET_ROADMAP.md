@@ -4,7 +4,7 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 
 ## Phase 1 — Experimentation and statistics
 
-- [ ] Define a product question, primary metric, null/alternative hypotheses, and guardrails.
+- [x] Define a proposed product question, primary metric, null/alternative hypotheses, and guardrails (`docs/EXPERIMENT_PREANALYSIS_PLAN.md`; design only, not a launched experiment).
 - [ ] Validate assignment balance, sample-ratio mismatch, exposure, and outcome definitions.
 - [ ] Calculate baseline conversion, minimum detectable effect, sample size, and statistical power.
 - [ ] Report treatment/control rates, absolute and relative lift, confidence intervals, p-values, and practical significance.

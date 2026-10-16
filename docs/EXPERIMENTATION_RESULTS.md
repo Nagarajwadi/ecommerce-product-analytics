@@ -40,6 +40,8 @@ Notebook 04's adjusted logistic regression estimates a treatment coefficient of 
 
 The Holm-Bonferroni example is illustrative and uses pre-specified example p-values (0.01, 0.04, 0.03), adjusted to (0.03, 0.06, 0.06). It is not a set of observed product hypotheses.
 
+For the proposed product-page experiment design and pre-analysis rules, see [`EXPERIMENT_PREANALYSIS_PLAN.md`](EXPERIMENT_PREANALYSIS_PLAN.md). This is a proposed plan, not a record of a launched experiment.
+
 ## Before interpreting a real experiment
 
 1. Write down the product question, primary metric, randomization unit, eligibility/exposure definition, observation window, null and alternative hypotheses, and guardrail metrics.
