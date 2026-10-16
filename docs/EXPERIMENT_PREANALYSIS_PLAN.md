@@ -85,6 +85,31 @@ Before launch, specify:
 - Expected allocation, exclusions, and data loss.
 - The planned method for inference given user-level randomization.
 
+### Illustrative calculation using synthetic data
+
+A provisional user-level calculation was performed using the existing synthetic
+event data:
+
+- Baseline: 6,728 / 9,790 users = 68.7232%.
+- Illustrative treatment target: 73.7232%.
+- Minimum detectable absolute effect: 5 percentage points.
+- Significance level: two-sided alpha = 0.05.
+- Target power: 80%.
+- Allocation: 50% control and 50% treatment.
+- Approximate requirement: 1,286 users per arm, or 2,572 users total,
+  using the project's independent two-proportion normal approximation.
+
+This estimate is provisional, not a finalized experiment target. The baseline
+includes users with eligible product-view sessions and does not establish
+the correct denominator for all eligible randomized users in a future
+experiment. Eligibility, exposure, outcome attribution, and any expected
+attrition must be finalized before adopting the sample-size target.
+
+The calculation assumes independent randomized users, a fixed-horizon design,
+and complete outcome measurement. The synthetic data does not validate that
+the proposed treatment was implemented or exposed correctly.
+
+
 Calculate and document the required sample size before examining treatment
 outcomes. The existing notebook's sample-size example is illustrative and
 must not automatically be reused without checking its assumptions.

@@ -58,6 +58,27 @@ def test_sample_size_grows_for_smaller_effect():
     assert small_effect > 100
 
 
+def test_sample_size_for_product_clarity_experiment():
+    baseline_rate = 6728 / 9790
+
+    result = required_sample_size_per_group(
+        baseline_rate=baseline_rate,
+        minimum_detectable_effect=0.05,
+        alpha=0.05,
+        power=0.80,
+    )
+
+    assert result > 0
+    assert isinstance(result, int)
+    assert result == required_sample_size_per_group(
+        baseline_rate=baseline_rate,
+        minimum_detectable_effect=0.05,
+        alpha=0.05,
+        power=0.80,
+    )
+
+
+
 def test_sample_size_rejects_invalid_input():
     with pytest.raises(ValueError):
         required_sample_size_per_group(0.34, 0)
