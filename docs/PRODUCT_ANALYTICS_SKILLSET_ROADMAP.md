@@ -9,7 +9,7 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 - [ ] Calculate baseline conversion, minimum detectable effect, sample size, and statistical power.
 - [ ] Report treatment/control rates, absolute and relative lift, confidence intervals, p-values, and practical significance.
 - [x] Add tested logistic regression adjustment with odds-ratio confidence intervals and document covariate timing, confounding, and synthetic-data limitations (`src/experimentation.py`, `tests/test_regression_adjustment.py`, `notebooks/04_experiment_diagnostics_regression.ipynb`, `docs/EXPERIMENTATION_RESULTS.md`).
-- [ ] Document peeking, multiple testing, selection bias, novelty effects, and limits of synthetic data.
+- [x] Document peeking, multiple testing, selection bias, novelty effects, confounding, and limits of synthetic data (`docs/EXPERIMENTATION_PITFALLS.md`).
 - [ ] Deliver a reproducible notebook and tests for reusable statistical functions.
 
 ## Phase 2 — Funnels, cohorts, segmentation, and campaigns

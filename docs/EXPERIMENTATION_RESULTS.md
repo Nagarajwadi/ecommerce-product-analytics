@@ -48,6 +48,8 @@ The Holm-Bonferroni example is illustrative and uses pre-specified example p-val
 4. Confirm covariates are pre-treatment before using them for balance checks or regression adjustment.
 5. Report absolute and relative lift, confidence intervals, p-values, practical significance, and guardrail outcomes together.
 6. Disclose selection bias, novelty effects, possible confounding, and that synthetic results are not real customer evidence.
+For expanded explanations and a reusable pre-analysis checklist, see
+[`EXPERIMENTATION_PITFALLS.md`](EXPERIMENTATION_PITFALLS.md).
 
 ## Reproducibility and safety
 
