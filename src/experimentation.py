@@ -172,3 +172,51 @@ def holm_bonferroni(p_values: list[float]) -> list[float]:
     for index, adjusted in adjusted_sorted:
         result[index] = adjusted
     return result
+
+
+
+
+def adjusted_logistic_regression(data):
+    """Fit an adjusted purchase model and return treatment-effect statistics.
+
+    Required columns: purchased (0/1), treatment (0/1), device, traffic_source.
+    Device and traffic_source must be confirmed pre-treatment covariates.
+    The results are conditional associations; causal interpretation requires
+    a valid experiment design and appropriate model assumptions.
+    """
+    import numpy as np
+    import statsmodels.formula.api as smf
+
+    required = {"purchased", "treatment", "device", "traffic_source"}
+    missing = required - set(data.columns)
+    if missing:
+        raise ValueError(f"Missing required columns: {sorted(missing)}")
+
+    if data.empty:
+        raise ValueError("data must contain at least one row")
+
+    if data[list(required)].isna().any().any():
+        raise ValueError("Required model columns must not contain missing values")
+
+    for column in ("purchased", "treatment"):
+        if not set(data[column].unique()).issubset({0, 1}):
+            raise ValueError(f"{column} must contain only 0 and 1")
+        if data[column].nunique() != 2:
+            raise ValueError(f"{column} must contain both 0 and 1")
+
+    model = smf.logit(
+        "purchased ~ treatment + C(device) + C(traffic_source)",
+        data=data,
+    ).fit(disp=False)
+
+    coefficient = float(model.params["treatment"])
+    coefficient_low, coefficient_high = model.conf_int().loc["treatment"]
+
+    return {
+        "n_users": int(len(data)),
+        "coefficient_log_odds": coefficient,
+        "odds_ratio": float(np.exp(coefficient)),
+        "odds_ratio_ci_low": float(np.exp(coefficient_low)),
+        "odds_ratio_ci_high": float(np.exp(coefficient_high)),
+        "p_value": float(model.pvalues["treatment"]),
+    }

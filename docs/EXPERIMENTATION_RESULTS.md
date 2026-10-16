@@ -35,7 +35,8 @@ Notebook 03's separate teaching example uses a 34% baseline, a +2 percentage-poi
 
 The notebook's illustrative fixed-horizon counts (1,000 per group; 34% versus 41%) are separate from the dataset-derived counts above. Statistical significance is not the same as practical significance; assess business value and guardrails before making a product decision.
 
-Notebook 04's logistic regression treatment coefficient was **+0.290 log-odds** (odds ratio approximately **1.34**). It is an adjusted association, not a percentage-point conversion lift. No confidence interval for that coefficient is reported in the current notebook. Adjustment is only defensible when covariates are appropriate and measured before treatment.
+
+Notebook 04's adjusted logistic regression estimates a treatment coefficient of **+0.2905 log-odds** (standard error **0.0416**), corresponding to an adjusted odds ratio of **1.337** with a model-based **95% confidence interval of 1.232–1.451** and a treatment-coefficient p-value of **2.81 × 10⁻¹²**. This is a conditional association with purchase odds, not a percentage-point conversion lift. Device and traffic source are generated once per user before events in this synthetic dataset and are used as illustrative pre-treatment covariates. In a real experiment, verify covariate timing and assignment design before adjustment. Regression does not eliminate unmeasured confounding or repair experiment-design problems. All results are synthetic teaching examples, not evidence about actual customers.
 
 The Holm-Bonferroni example is illustrative and uses pre-specified example p-values (0.01, 0.04, 0.03), adjusted to (0.03, 0.06, 0.06). It is not a set of observed product hypotheses.
 
