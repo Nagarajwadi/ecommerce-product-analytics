@@ -54,3 +54,26 @@ def test_adjusted_logistic_regression_rejects_missing_values():
 
     with pytest.raises(ValueError, match="missing values"):
         adjusted_logistic_regression(data)
+
+def test_adjusted_logistic_regression_rejects_invalid_binary_values():
+    data = make_model_data()
+    data.loc[0, "treatment"] = 2
+
+    with pytest.raises(ValueError, match="treatment must contain only 0 and 1"):
+        adjusted_logistic_regression(data)
+
+
+def test_adjusted_logistic_regression_rejects_single_class_treatment():
+    data = make_model_data()
+    data["treatment"] = 0
+
+    with pytest.raises(ValueError, match="treatment must contain both 0 and 1"):
+        adjusted_logistic_regression(data)
+
+
+def test_adjusted_logistic_regression_rejects_single_class_outcome():
+    data = make_model_data()
+    data["purchased"] = 0
+
+    with pytest.raises(ValueError, match="purchased must contain both 0 and 1"):
+        adjusted_logistic_regression(data)
