@@ -125,6 +125,9 @@ def sample_ratio_mismatch(
     A significant result flags assignment-count imbalance for investigation;
     it does not identify the cause. Counts should represent unique randomized
     units, not event rows. This test is not a substitute for balance checks.
+    Expected group counts should be sufficiently large for the chi-square
+    approximation to be reliable; investigate small expected counts with an
+    appropriate exact or simulation-based method.
     """
     if not isinstance(control_count, int) or not isinstance(treatment_count, int):
         raise TypeError("group counts must be integers")

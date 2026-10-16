@@ -5,7 +5,8 @@ This roadmap extends the ShopFlow synthetic e-commerce analytics project. Work i
 ## Phase 1 — Experimentation and statistics
 
 - [x] Define a proposed product question, primary metric, null/alternative hypotheses, and guardrails (`docs/EXPERIMENT_PREANALYSIS_PLAN.md`; design only, not a launched experiment).
-- [ ] Validate assignment balance, sample-ratio mismatch, exposure, and outcome definitions.
+- [x] Add tested assignment-integrity checks, SRM diagnostics, recorded-exposure reporting, and outcome-event counts; document limitations (`src/experiment_integrity.py`, `src/experimentation.py`, `tests/test_experiment_integrity.py`).
+- [ ] Validate the primary binary outcome definition and fixed attribution window; assess sample-size assumptions and experiment-readiness criteria.
 - [ ] Calculate baseline conversion, minimum detectable effect, sample size, and statistical power.
 - [ ] Report treatment/control rates, absolute and relative lift, confidence intervals, p-values, and practical significance.
 - [x] Add tested logistic regression adjustment with odds-ratio confidence intervals and document covariate timing, confounding, and synthetic-data limitations (`src/experimentation.py`, `tests/test_regression_adjustment.py`, `notebooks/04_experiment_diagnostics_regression.ipynb`, `docs/EXPERIMENTATION_RESULTS.md`).

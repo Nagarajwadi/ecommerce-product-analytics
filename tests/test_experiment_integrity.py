@@ -131,3 +131,25 @@ def test_excludes_conflicting_users_from_outcome_counts():
         "control": 1,
         "treatment": 1,
     }
+
+
+@pytest.mark.parametrize("event_name", [None, "", "   "])
+def test_rejects_missing_or_blank_event_names(event_name):
+    data = make_events()
+    data.loc[0, "event_name"] = event_name
+
+    with pytest.raises(ValueError, match="event_name"):
+        validate_experiment_integrity(data)
+
+
+def test_normalizes_whitespace_around_event_names():
+    data = make_events()
+    data.loc[data.index[1], "event_name"] = " view_product "
+
+    result = validate_experiment_integrity(data)
+
+    # Event labels are expected to match exact configured names.
+    # Whitespace must not silently hide recorded exposure.
+    assert result["recorded_exposure"]["control"][
+        "users_with_recorded_exposure"
+    ] == 1

@@ -72,6 +72,10 @@ def validate_experiment_integrity(
     ].eq("").any():
         raise ValueError("experiment_group contains missing or empty values")
 
+    data["event_name"] = data["event_name"].astype("string").str.strip()
+    if data["event_name"].isna().any() or data["event_name"].eq("").any():
+        raise ValueError("event_name contains missing or empty values")
+
     invalid_groups = sorted(
         set(data["experiment_group"].dropna().unique()) - VALID_GROUPS
     )
