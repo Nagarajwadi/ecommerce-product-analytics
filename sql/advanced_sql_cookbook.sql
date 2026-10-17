@@ -74,3 +74,46 @@ SELECT user_id, COUNT(*) AS sessions,
 FROM session_summary
 GROUP BY user_id
 ORDER BY sessions DESC;
+
+-- 6. Daily engagement joined to daily purchase metrics.
+-- Business question:
+-- How do daily event activity and active users compare with purchases
+-- and purchase-event revenue?
+--
+-- Join safety:
+-- Both CTEs return at most one row per activity_date, so the join does not
+-- multiply event rows. LEFT JOIN preserves dates with activity but no
+-- purchase events; COALESCE reports zero purchases/revenue on those dates.
+-- Revenue is event-based (price * quantity on purchase events).
+-- These results describe synthetic project data, not real business outcomes.
+
+WITH daily_activity AS (
+    SELECT
+        date(timestamp) AS activity_date,
+        COUNT(*) AS total_events,
+        COUNT(DISTINCT user_id) AS active_users
+    FROM events
+    GROUP BY date(timestamp)
+),
+daily_purchases AS (
+    SELECT
+        date(timestamp) AS activity_date,
+        COUNT(*) AS purchase_events,
+        COUNT(DISTINCT user_id) AS purchasing_users,
+        SUM(price * quantity) AS purchase_event_revenue
+    FROM events
+    WHERE event_name = 'purchase'
+    GROUP BY date(timestamp)
+)
+SELECT
+    activity.activity_date,
+    activity.total_events,
+    activity.active_users,
+    COALESCE(purchases.purchase_events, 0) AS purchase_events,
+    COALESCE(purchases.purchasing_users, 0) AS purchasing_users,
+    ROUND(COALESCE(purchases.purchase_event_revenue, 0), 2)
+        AS purchase_event_revenue
+FROM daily_activity AS activity
+LEFT JOIN daily_purchases AS purchases
+    ON activity.activity_date = purchases.activity_date
+ORDER BY activity.activity_date;

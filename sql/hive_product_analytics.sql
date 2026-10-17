@@ -22,15 +22,19 @@
 -- LOCATION 's3a://YOUR-BUCKET/product-events/';
 
 -- Daily channel metrics; partition predicate avoids scanning all dates.
-SELECT traffic_source,
+SELECT event_date,
+       traffic_source,
        COUNT(DISTINCT user_id) AS users,
        COUNT(DISTINCT CASE WHEN event_name = 'purchase' THEN user_id END) AS purchasers,
        SUM(CASE WHEN event_name = 'purchase' THEN price * quantity ELSE 0 END) AS revenue
 FROM analytics.events
 WHERE event_date >= '2026-01-01' AND event_date < '2026-07-01'
-GROUP BY traffic_source;
+GROUP BY event_date, traffic_source;
 
 -- Daily revenue and a seven-row rolling window over daily aggregates.
+-- This is seven available date rows, not necessarily seven calendar days.
+-- To guarantee calendar-day semantics, build a complete date spine and
+-- fill missing dates with zero revenue before applying the window.
 WITH daily AS (
   SELECT event_date,
          SUM(CASE WHEN event_name = 'purchase' THEN price * quantity ELSE 0 END) AS revenue

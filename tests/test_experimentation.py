@@ -119,3 +119,23 @@ def test_holm_bonferroni_handles_empty_input_and_invalid_values():
     assert holm_bonferroni([]) == []
     with pytest.raises(ValueError):
         holm_bonferroni([1.1])
+
+
+@pytest.mark.parametrize(
+    "successes,total",
+    [(True, 1), (False, 1), (1, True), (1, False)],
+)
+def test_conversion_rate_rejects_boolean_counts(successes, total):
+    with pytest.raises(TypeError, match="integers"):
+        conversion_rate(successes, total)
+
+
+@pytest.mark.parametrize(
+    "control_count,treatment_count",
+    [(True, 1), (False, 1), (1, True), (1, False)],
+)
+def test_sample_ratio_mismatch_rejects_boolean_counts(
+    control_count, treatment_count
+):
+    with pytest.raises(TypeError, match="integers"):
+        sample_ratio_mismatch(control_count, treatment_count)

@@ -13,7 +13,12 @@ _NORMAL = NormalDist()
 
 
 def _validate_counts(successes: int, total: int, name: str) -> None:
-    if not isinstance(successes, int) or not isinstance(total, int):
+    if (
+        isinstance(successes, bool)
+        or isinstance(total, bool)
+        or not isinstance(successes, int)
+        or not isinstance(total, int)
+    ):
         raise TypeError(f"{name} successes and total must be integers")
     if total <= 0 or successes < 0 or successes > total:
         raise ValueError(f"Require 0 <= {name} successes <= total and total > 0")
@@ -129,7 +134,12 @@ def sample_ratio_mismatch(
     approximation to be reliable; investigate small expected counts with an
     appropriate exact or simulation-based method.
     """
-    if not isinstance(control_count, int) or not isinstance(treatment_count, int):
+    if (
+        isinstance(control_count, bool)
+        or isinstance(treatment_count, bool)
+        or not isinstance(control_count, int)
+        or not isinstance(treatment_count, int)
+    ):
         raise TypeError("group counts must be integers")
     if control_count < 0 or treatment_count < 0 or control_count + treatment_count == 0:
         raise ValueError("group counts must be nonnegative with a positive total")
@@ -223,3 +233,62 @@ def adjusted_logistic_regression(data):
         "odds_ratio_ci_high": float(np.exp(coefficient_high)),
         "p_value": float(model.pvalues["treatment"]),
     }
+
+
+def achieved_power(
+    baseline_rate: float,
+    minimum_detectable_effect: float,
+    n_per_group: int,
+    alpha: float = 0.05,
+) -> float:
+    """Approximate two-sided power for two independent proportions.
+
+    Assumes equal-sized independent groups, a fixed-horizon design, and a
+    treatment rate equal to baseline_rate + minimum_detectable_effect.
+    Uses the pooled null standard error for rejection boundaries and the
+    alternative standard error to approximate power. This is a planning
+    approximation, not an analysis of observed outcomes.
+    """
+    if not 0 < baseline_rate < 1:
+        raise ValueError("baseline_rate must be between 0 and 1")
+    if not 0 < minimum_detectable_effect < 1:
+        raise ValueError("minimum_detectable_effect must be between 0 and 1")
+    treatment_rate = baseline_rate + minimum_detectable_effect
+    if treatment_rate >= 1:
+        raise ValueError(
+            "baseline_rate + minimum_detectable_effect must be below 1"
+        )
+    if isinstance(n_per_group, bool) or not isinstance(n_per_group, int):
+        raise TypeError("n_per_group must be an integer")
+    if n_per_group <= 0:
+        raise ValueError("n_per_group must be positive")
+    if not 0 < alpha < 1:
+        raise ValueError("alpha must be between 0 and 1")
+
+    p0 = baseline_rate
+    p1 = treatment_rate
+    pooled = (p0 + p1) / 2
+
+    null_standard_error = math.sqrt(
+        2 * pooled * (1 - pooled) / n_per_group
+    )
+    alternative_standard_error = math.sqrt(
+        (p0 * (1 - p0) + p1 * (1 - p1)) / n_per_group
+    )
+
+    z_critical = _NORMAL.inv_cdf(1 - alpha / 2)
+    rejection_boundary = z_critical * null_standard_error
+
+    # Approximate both tails beyond the null rejection boundaries under
+    # the alternative distribution of the difference in proportions.
+    lower_tail = _NORMAL.cdf(
+        (-rejection_boundary - minimum_detectable_effect)
+        / alternative_standard_error
+    )
+    upper_tail = 1 - _NORMAL.cdf(
+        (rejection_boundary - minimum_detectable_effect)
+        / alternative_standard_error
+    )
+
+    power = lower_tail + upper_tail
+    return min(1.0, max(0.0, power))

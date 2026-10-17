@@ -4,7 +4,9 @@
 
 These results were calculated from the project's local SQLite event table during the Product Analytics skillset exercise. The project dataset is synthetic. Treat all rates, p-values, coefficients, and diagnostics as demonstrations of the analysis workflow, not evidence about real customers or a verified live experiment.
 
-The analysis used one row per user for the binary outcome: whether the user had at least one `purchase` event. The experiment group was taken from the user's event records, and the analysis included users with a single distinct non-null experiment group. Database access was read-only.
+The purchase-conversion analysis used one row per user for the binary outcome: whether the user had at least one `purchase` event. The experiment group was taken from the user's event records, and the analysis included users with a single distinct non-null experiment group. Database access was read-only. This purchase outcome is distinct from the view-conditioned cart-conversion outcome documented separately below; their rates and effect estimates should not be treated as interchangeable.
+
+The event data does not record an explicit assignment timestamp. Consequently, these analyses cannot verify that events used as exposure anchors occurred after assignment. Assignment consistency checks alone do not establish that exposure timing, eligibility, or a real experiment's randomization process was valid.
 
 ## Observed conversion comparison
 
@@ -56,7 +58,30 @@ For expanded explanations and a reusable pre-analysis checklist, see
 ## Reproducibility and safety
 
 - Notebook 03 and Notebook 04 were executed successfully with `jupyter nbconvert --execute`.
-- The full automated test suite passed: **28 tests**.
+- Earlier validation record: the automated test suite passed **28 tests**.
+- Current roadmap-branch validation: the full automated test suite passed **187 tests** (`PYTHONPATH=. python -m pytest -q`).
 - The retention cohort test file passed: **2 tests** in the separate validation run.
 - Notebook 04 opens `data/product_analytics.db` using SQLite read-only mode. No database writes are required for this analysis.
 - Executed notebooks were written to `/tmp`; generated outputs were not written back into the tracked notebook files.
+
+## Proposed product-page cart-conversion outcome
+
+This is a separate exploratory analysis from the purchase-conversion results above. It applies the proposed primary outcome in `EXPERIMENT_PREANALYSIS_PLAN.md` to the synthetic event dataset: each user is eligible after a qualifying product view, and converts if at least one `add_to_cart` occurs at or after the first qualifying view in the same session, within the inclusive seven-day observation window. Users without a qualifying view are reported separately; users with conflicting experiment assignments are excluded.
+
+This is a view-conditioned comparison, not an intention-to-treat estimate. Because treatment may affect whether a user views a product, conditioning eligibility on a product view can introduce selection bias. The data also lacks an explicit assignment timestamp, so it cannot establish that the first recorded view occurred after assignment. The reported difference, confidence interval, and p-value are exploratory descriptions of synthetic data, not a causal treatment-effect estimate.
+
+| Metric | Control | Treatment |
+|---|---:|---:|
+| Assigned users | 4,949 | 5,051 |
+| Eligible users with a qualifying product view | 4,841 | 4,949 |
+| Users who added to cart under the outcome rule | 1,422 | 1,586 |
+| User-level cart-conversion rate | 29.37% | 32.05% |
+| Assigned users without a qualifying view | 108 | 102 |
+
+- Absolute difference (treatment minus control): **+2.673 percentage points**.
+- Relative difference versus control: **+9.10%**.
+- Exploratory two-sided pooled two-proportion z-test: **z = 2.8659**, **p = 0.004158**.
+- 95% unpooled Wald confidence interval for the absolute difference: **+0.846 to +4.499 percentage points**.
+- Users with conflicting experiment assignments excluded: **0**.
+
+The test is statistically significant at alpha = 0.05 under its assumptions, and the approximate confidence interval excludes zero. However, this dataset is synthetic, and these calculations do not establish a causal treatment effect or a verified experiment result. The z-test assumes independent units and a valid fixed-horizon design; the confidence interval uses an unpooled Wald approximation. The business-relevant MDE has not been approved, and practical significance and launch readiness remain unresolved. Do not interpret the result as a product launch recommendation.
