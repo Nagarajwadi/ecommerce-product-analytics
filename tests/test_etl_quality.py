@@ -123,4 +123,3 @@ def test_transform_coerces_invalid_timestamp_for_quality_check():
     assert transformed["timestamp"].isna().any()
     with pytest.raises(ValueError, match="invalid or missing timestamps"):
         validate_data_quality(transformed)
-
