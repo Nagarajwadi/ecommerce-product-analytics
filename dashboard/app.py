@@ -3,7 +3,10 @@ from pathlib import Path
 
 import pandas as pd
 import streamlit as st
-
+from src.experimentation import (
+    difference_confidence_interval,
+    two_proportion_z_test,
+)
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -26,24 +29,29 @@ DB_PATH = BASE_DIR / "data" / "product_analytics.db"
 
 @st.cache_data
 def load_data():
+    # Read-only connection protects the local analytics database.
+    readonly_uri = f"{DB_PATH.resolve().as_uri()}?mode=ro"
+    with sqlite3.connect(readonly_uri, uri=True) as connection:
+        data = pd.read_sql_query("SELECT * FROM events", connection)
 
-    connection = sqlite3.connect(DB_PATH)
-
-    data = pd.read_sql_query(
-        "SELECT * FROM events",
-        connection
-    )
-
-    connection.close()
-
-    data["timestamp"] = pd.to_datetime(
-        data["timestamp"]
-    )
-
+    data["timestamp"] = pd.to_datetime(data["timestamp"])
     return data
 
 
+@st.cache_data
+def load_sql_result(relative_path: str) -> pd.DataFrame:
+    """Run a repository SQL analysis using a read-only SQLite connection."""
+    query_path = BASE_DIR / relative_path
+    query = query_path.read_text(encoding="utf-8")
+    readonly_uri = f"{DB_PATH.resolve().as_uri()}?mode=ro"
+    with sqlite3.connect(readonly_uri, uri=True) as connection:
+        return pd.read_sql_query(query, connection)
+
+
 df = load_data()
+funnel_sql = load_sql_result("sql/sequential_funnel.sql")
+segment_sql = load_sql_result("sql/segment_conversion.sql")
+engagement_sql = load_sql_result("sql/engagement_conversion.sql")
 
 
 # ============================================================
@@ -95,6 +103,7 @@ page = st.sidebar.radio(
         "Funnel",
         "Revenue",
         "Retention",
+        "Segmentation",
         "Experimentation"
     ]
 )
@@ -193,28 +202,38 @@ if page == "Overview":
         )
 
         st.write(
-            "The largest funnel drop-off occurs between "
-            "**product view and add to cart**."
+            "The largest drop-off is calculated from the "
+            "ordered session funnel on the Funnel page."
         )
 
-        st.subheader("📱 Device")
+        st.subheader("📱 Segmentation")
 
-        st.write(
-            "Mobile conversion is **34.01%**, compared "
-            "with **40.60%** on web."
-        )
+        device_segments = segment_sql[
+            segment_sql["segment_type"] == "device"
+        ].sort_values("conversion_pct", ascending=False)
+
+        if not device_segments.empty:
+            best_device = device_segments.iloc[0]
+            st.write(
+                f"Highest observed device conversion: **{best_device['segment']}** "
+                f"({best_device['conversion_pct']:.2f}%)."
+            )
+            st.caption(
+                "Descriptive user-level comparison; device is assigned from "
+                "each user's earliest observed event."
+            )
 
     with col2:
 
         st.subheader("🧪 Experiment")
 
         st.write(
-            "Treatment conversion is **40.88%** compared "
-            "with **34.17%** for control."
+            "See the Experimentation page for conversion by assignment group."
         )
 
-        st.write(
-            "This represents a **19.65% relative lift**."
+        st.caption(
+            "These synthetic results are educational and should not be "
+            "interpreted causally without validating assignment and exposure."
         )
 
         st.subheader("💰 Revenue")
@@ -253,65 +272,35 @@ elif page == "Funnel":
 
     st.header("🛒 Conversion Funnel")
 
-    funnel_data = pd.DataFrame({
-        "Stage": [
-            "App Open",
-            "View Product",
-            "Add to Cart",
-            "Checkout Start",
-            "Purchase"
-        ],
-        "Users": [
-            df.loc[
-                df["event_name"] == "app_open",
-                "user_id"
-            ].nunique(),
-
-            df.loc[
-                df["event_name"] == "view_product",
-                "user_id"
-            ].nunique(),
-
-            df.loc[
-                df["event_name"] == "add_to_cart",
-                "user_id"
-            ].nunique(),
-
-            df.loc[
-                df["event_name"] == "checkout_start",
-                "user_id"
-            ].nunique(),
-
-            df.loc[
-                df["event_name"] == "purchase",
-                "user_id"
-            ].nunique()
-        ]
+    stage_labels = {
+        "app_open": "App Open",
+        "view_product": "View Product",
+        "add_to_cart": "Add to Cart",
+        "checkout_start": "Checkout Start",
+        "purchase": "Purchase",
+    }
+    funnel_data = funnel_sql.copy()
+    funnel_data["Stage"] = funnel_data["stage"].map(stage_labels)
+    funnel_data = funnel_data.rename(columns={
+        "sessions": "Sessions",
+        "conversion_from_previous_pct": "Conversion from Previous (%)",
+        "drop_off_sessions": "Drop-off Sessions",
+        "drop_off_pct": "Drop-off (%)",
+        "conversion_from_entry_pct": "Conversion from Entry (%)",
     })
-
-    funnel_data["Conversion from Previous (%)"] = (
-        funnel_data["Users"]
-        .div(funnel_data["Users"].shift(1))
-        .mul(100)
-    )
-
-    funnel_data["Drop-off Users"] = (
-        funnel_data["Users"].shift(1)
-        - funnel_data["Users"]
-    )
-
-    funnel_data["Drop-off (%)"] = (
-        funnel_data["Drop-off Users"]
-        .div(funnel_data["Users"].shift(1))
-        .mul(100)
-    )
 
     # --------------------------------------------------------
     # Funnel chart
     # --------------------------------------------------------
 
+    st.caption(
+        "This is an ordered, session-level funnel. A session advances only "
+        "when each event occurs strictly after the previous stage in the same "
+        "session. One user may contribute multiple sessions."
+    )
+
     st.bar_chart(
-        funnel_data.set_index("Stage")["Users"],
+        funnel_data.set_index("Stage")["Sessions"],
         horizontal=True
     )
 
@@ -320,12 +309,16 @@ elif page == "Funnel":
     # --------------------------------------------------------
 
     st.dataframe(
-        funnel_data.style.format({
-            "Users": "{:,.0f}",
+        funnel_data[[
+            "Stage", "Sessions", "Conversion from Previous (%)",
+            "Drop-off Sessions", "Drop-off (%)", "Conversion from Entry (%)"
+        ]].style.format({
+            "Sessions": "{:,.0f}",
             "Conversion from Previous (%)": "{:.2f}%",
-            "Drop-off Users": "{:,.0f}",
-            "Drop-off (%)": "{:.2f}%"
-        }),
+            "Drop-off Sessions": "{:,.0f}",
+            "Drop-off (%)": "{:.2f}%",
+            "Conversion from Entry (%)": "{:.2f}%"
+        }, na_rep="—"),
         use_container_width=True,
         hide_index=True
     )
@@ -338,32 +331,16 @@ elif page == "Funnel":
 
     st.header("📱 Conversion by Device")
 
-    device_data = []
-
-    for device, group in df.groupby("device"):
-
-        users = group["user_id"].nunique()
-
-        purchasers = group.loc[
-            group["event_name"] == "purchase",
-            "user_id"
-        ].nunique()
-
-        device_data.append({
-            "Device": device,
-            "Users": users,
-            "Purchasers": purchasers,
-            "Conversion (%)": (
-                purchasers / users * 100
-            )
-        })
-
-    device_df = pd.DataFrame(device_data)
-
-    device_df = device_df.sort_values(
-        "Conversion (%)",
-        ascending=False
-    )
+    device_df = segment_sql[
+        segment_sql["segment_type"] == "device"
+    ][["segment", "users", "purchasers", "non_purchasers", "conversion_pct"]]
+    device_df = device_df.rename(columns={
+        "segment": "Device",
+        "users": "Users",
+        "purchasers": "Purchasers",
+        "non_purchasers": "Non-purchasers",
+        "conversion_pct": "Conversion (%)",
+    }).sort_values("Conversion (%)", ascending=False)
 
     st.bar_chart(
         device_df.set_index("Device")["Conversion (%)"],
@@ -380,9 +357,85 @@ elif page == "Funnel":
         hide_index=True
     )
 
-    st.info(
-        "Mobile conversion is 34.01%, compared with "
-        "40.60% on web — a 6.59 percentage-point gap."
+    st.caption(
+        "Each user is assigned to the device from their earliest observed event. "
+        "These are descriptive comparisons, not causal estimates."
+    )
+
+
+# ============================================================
+# SEGMENTATION
+# ============================================================
+
+elif page == "Segmentation":
+
+    st.header("🧭 User Conversion Segmentation")
+    st.caption(
+        "Each user is counted once per dimension and assigned to the device "
+        "and traffic source on their earliest observed event. Results are "
+        "descriptive; traffic source is not a verified campaign attribution."
+    )
+
+    for segment_type, heading in [
+        ("device", "Conversion by Device"),
+        ("traffic_source", "Conversion by Traffic Source"),
+    ]:
+        st.subheader(heading)
+        segment_df = segment_sql[
+            segment_sql["segment_type"] == segment_type
+        ][["segment", "users", "purchasers", "non_purchasers", "conversion_pct"]]
+        segment_df = segment_df.rename(columns={
+            "segment": "Segment",
+            "users": "Users",
+            "purchasers": "Purchasers",
+            "non_purchasers": "Non-purchasers",
+            "conversion_pct": "Conversion (%)",
+        }).sort_values("Conversion (%)", ascending=False)
+
+        if segment_df.empty:
+            st.info("No segment data is available.")
+            continue
+
+        st.bar_chart(segment_df.set_index("Segment")["Conversion (%)"], horizontal=True)
+        st.dataframe(
+            segment_df.style.format({
+                "Users": "{:,.0f}",
+                "Purchasers": "{:,.0f}",
+                "Non-purchasers": "{:,.0f}",
+                "Conversion (%)": "{:.2f}%",
+            }),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    st.divider()
+    st.subheader("Conversion by Engagement")
+    st.caption(
+        "Engagement is proxied by the number of distinct sessions observed per user. "
+        "This is descriptive; users with longer observation windows may accumulate more sessions."
+    )
+    engagement_df = engagement_sql.rename(columns={
+        "segment": "Engagement Segment",
+        "users": "Users",
+        "purchasers": "Purchasers",
+        "non_purchasers": "Non-purchasers",
+        "conversion_pct": "Conversion (%)",
+        "avg_sessions_per_user": "Avg. Sessions per User",
+    })
+    st.bar_chart(
+        engagement_df.set_index("Engagement Segment")["Conversion (%)"],
+        horizontal=True,
+    )
+    st.dataframe(
+        engagement_df.style.format({
+            "Users": "{:,.0f}",
+            "Purchasers": "{:,.0f}",
+            "Non-purchasers": "{:,.0f}",
+            "Conversion (%)": "{:.2f}%",
+            "Avg. Sessions per User": "{:.2f}",
+        }),
+        use_container_width=True,
+        hide_index=True,
     )
 
 
@@ -637,42 +690,122 @@ elif page == "Retention":
         hide_index=True
     )
 
+
     st.info(
         "Retention is calculated only among users who have "
         "enough observation time for each measurement point."
     )
+
+    # --------------------------------------------------------
+    # COHORT RETENTION
+    # --------------------------------------------------------
+
+    st.divider()
+    st.subheader("📅 Cohort Retention by First Observed Activity")
+
+    cohort_sql_path = BASE_DIR / "sql" / "retention_cohorts.sql"
+    cohort_query = cohort_sql_path.read_text(encoding="utf-8")
+
+    # Open a separate read-only connection; this view never writes to SQLite.
+    readonly_uri = f"{DB_PATH.resolve().as_uri()}?mode=ro"
+    with sqlite3.connect(readonly_uri, uri=True) as cohort_connection:
+        cohort_df = pd.read_sql_query(cohort_query, cohort_connection)
+
+    if cohort_df.empty:
+        st.warning("No cohort retention results are available.")
+    else:
+        chart_columns = [
+            "d1_retention_pct",
+            "d7_retention_pct",
+            "d30_retention_pct",
+        ]
+        st.line_chart(
+            cohort_df.set_index("cohort_month")[chart_columns]
+        )
+
+        display_columns = [
+            "cohort_month",
+            "cohort_users",
+            "d1_eligible_users",
+            "d1_users",
+            "d1_retention_pct",
+            "d7_eligible_users",
+            "d7_users",
+            "d7_retention_pct",
+            "d30_eligible_users",
+            "d30_users",
+            "d30_retention_pct",
+        ]
+        display_cohorts = cohort_df[display_columns].copy()
+        display_cohorts = display_cohorts.rename(columns={
+            "cohort_month": "Cohort Month",
+            "cohort_users": "Cohort Users",
+            "d1_eligible_users": "D1 Eligible",
+            "d1_users": "D1 Retained",
+            "d1_retention_pct": "D1 Retention (%)",
+            "d7_eligible_users": "D7 Eligible",
+            "d7_users": "D7 Retained",
+            "d7_retention_pct": "D7 Retention (%)",
+            "d30_eligible_users": "D30 Eligible",
+            "d30_users": "D30 Retained",
+            "d30_retention_pct": "D30 Retention (%)",
+        })
+
+        st.dataframe(
+            display_cohorts.style.format({
+                "Cohort Users": "{:,.0f}",
+                "D1 Eligible": "{:,.0f}",
+                "D1 Retained": "{:,.0f}",
+                "D1 Retention (%)": "{:.2f}%",
+                "D7 Eligible": "{:,.0f}",
+                "D7 Retained": "{:,.0f}",
+                "D7 Retention (%)": "{:.2f}%",
+                "D30 Eligible": "{:,.0f}",
+                "D30 Retained": "{:,.0f}",
+                "D30 Retention (%)": "{:.2f}%",
+            }, na_rep="Not mature"),
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.caption(
+            "Cohorts use first observed activity, not signup date. "
+            "D1/D7/D30 measure activity on the exact day. Each rate "
+            "uses only users with enough observation time; 'Not mature' "
+            "means no eligible users are available for that horizon."
+        )
 
 
 # ============================================================
 # EXPERIMENTATION
 # ============================================================
 
+
 elif page == "Experimentation":
 
     st.header("🧪 A/B Test Results")
 
+    # Count users assigned to each observed experiment group.
     experiment = (
-        df.groupby("experiment_group")
-        .agg(
-            Users=("user_id", "nunique")
-        )
+        df.dropna(subset=["experiment_group"])
+        .groupby("experiment_group")
+        .agg(Users=("user_id", "nunique"))
         .reset_index()
     )
 
     purchasers = (
-        purchase_df
+        purchase_df.dropna(subset=["experiment_group"])
         .groupby("experiment_group")["user_id"]
         .nunique()
-        .reset_index(
-            name="Purchasers"
-        )
+        .reset_index(name="Purchasers")
     )
 
     experiment = experiment.merge(
         purchasers,
         on="experiment_group",
-        how="left"
+        how="left",
     )
+    experiment["Purchasers"] = experiment["Purchasers"].fillna(0)
 
     experiment["Conversion (%)"] = (
         experiment["Purchasers"]
@@ -680,77 +813,129 @@ elif page == "Experimentation":
         * 100
     )
 
-    control_rate = experiment.loc[
-        experiment["experiment_group"] == "control",
-        "Conversion (%)"
-    ].iloc[0]
-
-    treatment_rate = experiment.loc[
-        experiment["experiment_group"] == "treatment",
-        "Conversion (%)"
-    ].iloc[0]
-
-    absolute_lift = (
-        treatment_rate - control_rate
-    )
-
-    relative_lift = (
-        absolute_lift
-        / control_rate
-        * 100
-    )
-
-    # --------------------------------------------------------
-    # Experiment KPIs
-    # --------------------------------------------------------
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        st.metric(
-            "Control",
-            f"{control_rate:.2f}%"
-        )
-
-    with col2:
-        st.metric(
-            "Treatment",
-            f"{treatment_rate:.2f}%"
-        )
-
-    with col3:
-        st.metric(
-            "Absolute Lift",
-            f"+{absolute_lift:.2f} pp"
-        )
-
-    with col4:
-        st.metric(
-            "Relative Lift",
-            f"+{relative_lift:.2f}%"
-        )
-
-    st.divider()
-
-    st.bar_chart(
-        experiment.set_index(
-            "experiment_group"
-        )["Conversion (%)"]
-    )
-
     st.dataframe(
         experiment.style.format({
             "Users": "{:,.0f}",
             "Purchasers": "{:,.0f}",
-            "Conversion (%)": "{:.2f}%"
+            "Conversion (%)": "{:.2f}%",
         }),
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
     )
 
-    st.success(
-        "The treatment increased conversion by "
-        "6.71 percentage points (19.65% relative lift). "
-        "The statistical test in src/analyze_ab_test.py "
-        "found the result statistically significant."
-    )
+    required_groups = {"control", "treatment"}
+    observed_groups = set(experiment["experiment_group"].astype(str))
+
+    missing_groups = required_groups - observed_groups
+    unknown_groups = observed_groups - required_groups
+    missing_assignments = int(df["experiment_group"].isna().sum())
+
+    if missing_assignments:
+        st.warning(
+            f"{missing_assignments:,} event rows have no experiment-group "
+            "assignment and are excluded from this comparison."
+        )
+
+    if unknown_groups:
+        st.warning(
+            "Unexpected experiment groups found: "
+            + ", ".join(sorted(unknown_groups))
+            + ". Review assignments before interpreting results."
+        )
+
+    if missing_groups:
+        st.warning(
+            "Cannot calculate the experiment comparison. Missing group(s): "
+            + ", ".join(sorted(missing_groups))
+        )
+    else:
+        control = experiment.loc[
+            experiment["experiment_group"] == "control"
+        ].iloc[0]
+
+        treatment = experiment.loc[
+            experiment["experiment_group"] == "treatment"
+        ].iloc[0]
+
+        control_users = int(control["Users"])
+        control_purchasers = int(control["Purchasers"])
+        treatment_users = int(treatment["Users"])
+        treatment_purchasers = int(treatment["Purchasers"])
+
+        if control_users == 0 or treatment_users == 0:
+            st.warning(
+                "Both experiment groups must contain users to calculate "
+                "conversion and statistical significance."
+            )
+        else:
+            result = two_proportion_z_test(
+                control_purchasers,
+                control_users,
+                treatment_purchasers,
+                treatment_users,
+            )
+
+            ci_lower, ci_upper = difference_confidence_interval(
+                control_purchasers,
+                control_users,
+                treatment_purchasers,
+                treatment_users,
+            )
+
+            control_rate = result["control_rate"] * 100
+            treatment_rate = result["treatment_rate"] * 100
+            absolute_lift = result["absolute_lift"] * 100
+            relative_lift = result["relative_lift"] * 100
+            p_value = result["p_value"]
+
+            col1, col2, col3, col4 = st.columns(4)
+
+            col1.metric("Control", f"{control_rate:.2f}%")
+            col2.metric("Treatment", f"{treatment_rate:.2f}%")
+            col3.metric(
+                "Absolute Lift",
+                f"{absolute_lift:+.2f} pp",
+            )
+            col4.metric(
+                "Relative Lift",
+                f"{relative_lift:+.2f}%"
+                if pd.notna(relative_lift)
+                else "N/A",
+            )
+
+            st.caption(
+                f"Two-sided z-test p-value: {p_value:.6g} | "
+                f"Z-score: {result['z_score']:.3f}"
+            )
+
+            st.caption(
+                "95% confidence interval for absolute lift: "
+                f"[{ci_lower * 100:+.2f}, {ci_upper * 100:+.2f}] "
+                "percentage points."
+            )
+
+            st.bar_chart(
+                experiment.set_index("experiment_group")["Conversion (%)"]
+            )
+
+            if p_value < 0.05:
+                st.info(
+                    "The observed conversion difference is statistically "
+                    "significant at the 0.05 level. Statistical significance "
+                    "does not establish practical importance or prove "
+                    "causality on its own."
+                )
+            else:
+                st.info(
+                    "The observed conversion difference is not statistically "
+                    "significant at the 0.05 level. This does not prove "
+                    "that the groups are equivalent."
+                )
+
+            st.caption(
+                "Interpretation note: this project uses synthetic data. "
+                "The comparison is illustrative, not evidence of a real "
+                "product effect. Causal interpretation requires valid "
+                "random assignment, a suitable analysis design, and "
+                "consistent outcome measurement."
+            )
