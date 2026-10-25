@@ -1036,6 +1036,11 @@ elif page == "Experimentation":
                 "The seven-day cart outcome is unavailable because unexpected "
                 "experiment-group labels were found."
             )
+        elif missing_groups:
+            st.warning(
+                "Cannot calculate the seven-day cart comparison. "
+                "Missing group(s): " + ", ".join(sorted(missing_groups))
+            )
         else:
             try:
                 cart_outcome = summarize_user_level_cart_conversion(
