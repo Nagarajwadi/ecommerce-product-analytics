@@ -176,6 +176,50 @@ def test_empty_events_returns_zero_counts_for_both_groups():
             "users_without_view": 0,
         }
 
+@pytest.mark.parametrize(
+    ("present_group", "missing_group"),
+    [
+        ("control", "treatment"),
+        ("treatment", "control"),
+    ],
+)
+def test_missing_experiment_group_returns_zero_counts(
+    present_group, missing_group
+):
+    events = make_events(
+        [
+            (
+                "u1",
+                present_group,
+                "view_product",
+                BASE_TIME,
+                "s1",
+            ),
+            (
+                "u1",
+                present_group,
+                "add_to_cart",
+                BASE_TIME + pd.Timedelta(hours=1),
+                "s1",
+            ),
+        ]
+    )
+
+    result = summarize_user_level_cart_conversion(events)
+
+    assert result["by_group"][present_group]["assigned_users"] == 1
+    assert result["by_group"][present_group]["eligible_users"] == 1
+    assert result["by_group"][present_group]["converted_users"] == 1
+
+    assert result["by_group"][missing_group] == {
+        "assigned_users": 0,
+        "eligible_users": 0,
+        "converted_users": 0,
+        "conversion_rate": None,
+        "users_without_view": 0,
+    }
+
+
 
 @pytest.mark.parametrize("event_name", ["view_product", "add_to_cart"])
 def test_rejects_missing_relevant_event_session_ids(event_name):
