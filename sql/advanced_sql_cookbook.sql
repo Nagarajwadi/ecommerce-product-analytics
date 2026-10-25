@@ -117,3 +117,39 @@ FROM daily_activity AS activity
 LEFT JOIN daily_purchases AS purchases
     ON activity.activity_date = purchases.activity_date
 ORDER BY activity.activity_date;
+
+
+-- 7. Category revenue ranking with window functions.
+-- Revenue is event-based: price * quantity for purchase events.
+WITH category_revenue AS (
+    SELECT
+        category,
+        SUM(price * quantity) AS revenue
+    FROM events
+    WHERE event_name = 'purchase'
+      AND category IS NOT NULL
+    GROUP BY category
+),
+ranked_categories AS (
+    SELECT
+        category,
+        ROUND(revenue, 2) AS revenue,
+        ROW_NUMBER() OVER (
+            ORDER BY revenue DESC, category ASC
+        ) AS row_num,
+        RANK() OVER (
+            ORDER BY revenue DESC
+        ) AS revenue_rank,
+        DENSE_RANK() OVER (
+            ORDER BY revenue DESC
+        ) AS dense_rank
+    FROM category_revenue
+)
+SELECT
+    category,
+    revenue,
+    row_num,
+    revenue_rank,
+    dense_rank
+FROM ranked_categories
+ORDER BY revenue DESC, category ASC;

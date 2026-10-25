@@ -127,6 +127,7 @@ def test_daily_join_reconciles_purchase_events_and_revenue():
     ).read_text(encoding="utf-8")
     marker = "-- 6. Daily engagement joined to daily purchase metrics."
     query = cookbook.split(marker, 1)[1]
+    query = query.split("-- 7.", 1)[0]
     query = query[query.index("WITH daily_activity AS"):].strip()
 
     try:

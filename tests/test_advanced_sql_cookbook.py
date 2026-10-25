@@ -12,7 +12,7 @@ COOKBOOK_PATH = ROOT / "sql" / "advanced_sql_cookbook.sql"
 def load_query(number):
     """Extract one numbered SQL query, excluding its heading and comments."""
     source = COOKBOOK_PATH.read_text(encoding="utf-8")
-    markers = list(re.finditer(r"(?m)^-- ([1-6])\.", source))
+    markers = list(re.finditer(r"(?m)^-- ([1-7])\.", source))
 
     for index, marker in enumerate(markers):
         if int(marker.group(1)) != number:
@@ -204,7 +204,58 @@ def test_query_5_summarizes_sessions_by_user_and_session_id(connection):
     assert by_user["u2"] == (1, 2.0, 0)
 
 
-@pytest.mark.parametrize("number", range(1, 7))
+@pytest.mark.parametrize("number", range(1, 8))
 def test_cookbook_query_can_be_extracted(number):
     query = load_query(number)
     assert query.upper().startswith(("WITH", "SELECT"))
+
+def test_query_7_ranks_category_revenue_and_handles_ties(connection):
+    connection.executemany(
+        """
+        INSERT INTO events (
+            user_id, timestamp, session_id, event_name, product_id,
+            category, price, quantity, device, country,
+            traffic_source, experiment_group
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                "u1", "2026-01-01 09:00:00", "s1", "purchase",
+                "p1", "Sports", 100.0, 2, "mobile", "US",
+                "search", None,
+            ),
+            (
+                "u2", "2026-01-01 09:01:00", "s2", "purchase",
+                "p2", "Grocery", 50.0, 4, "mobile", "US",
+                "search", None,
+            ),
+            (
+                "u3", "2026-01-01 09:02:00", "s3", "purchase",
+                "p3", "Books", 100.0, 1, "desktop", "US",
+                "email", None,
+            ),
+            (
+                "u4", "2026-01-01 09:03:00", "s4", "purchase",
+                "p4", None, 999.0, 1, "mobile", "US",
+                "search", None,
+            ),
+            (
+                "u5", "2026-01-01 09:04:00", "s5", "view_product",
+                "p5", "Beauty", 500.0, 1, "mobile", "US",
+                "search", None,
+            ),
+        ],
+    )
+
+    rows = run_query(connection, 7)
+    by_category = {row[0]: row[1:] for row in rows}
+
+    # Columns: revenue, row_num, revenue_rank, dense_rank.
+    assert by_category["Grocery"] == (200.0, 1, 1, 1)
+    assert by_category["Sports"] == (200.0, 2, 1, 1)
+    assert by_category["Books"] == (100.0, 3, 3, 2)
+
+    # Uncategorised purchases and non-purchase events are excluded.
+    assert None not in by_category
+    assert "Beauty" not in by_category
